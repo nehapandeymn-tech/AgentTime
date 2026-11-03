@@ -59,9 +59,9 @@ open /Applications/AgentTime.app
 
 ## Little things to know
 
-- **Move it:** drag it anywhere. Clicks go straight through to your windows unless your mouse is on it.
-- **Peek:** hover over a buddy for details.
-- **Options:** right-click it (or use the menu-bar icon) to pause the animations, hide it, or turn on the optional **Ice King** cameo for really tough tasks.
+- **It never gets in your way:** when your mouse goes over the widget, it fades almost invisible and clicks go straight through to whatever is behind it.
+- **Move it:** grab the little bar along the top and drag it anywhere. Hover that bar for details.
+- **Options:** right-click the top bar (or use the menu-bar icon) to pause the animations, hide it, or turn on the optional **Ice King** cameo for really tough tasks.
 - **Private by design:** it only notices *that* something happened, like "a task started" or "a step failed". It never reads your prompts, your code or your conversations.
 
 ## Saying goodbye

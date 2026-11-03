@@ -44,7 +44,9 @@ final class StageView: WKWebView {
     var onRightClick: ((NSEvent) -> Void)?
     var onMoved: (() -> Void)?
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-    override func mouseDown(with event: NSEvent) { window?.performDrag(with: event); onMoved?() }   // drag anywhere
+    var onDrag: ((Bool) -> Void)?
+    // Only reachable from the grab handle: everywhere else the panel ignores the mouse.
+    override func mouseDown(with event: NSEvent) { onDrag?(true); window?.performDrag(with: event); onDrag?(false); onMoved?() }
     override func rightMouseDown(with event: NSEvent) { onRightClick?(event) }
     override func scrollWheel(with event: NSEvent) {}
 }
@@ -127,6 +129,8 @@ final class Controller: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
     var owners: [String: Int32] = [:]          // "provider|session" -> agent process id, from hook records
     var lastConn: [String: String] = [:]
     var hovering = false
+    var dragging = false, faded = false, onHandle = false
+    let handleHeight: CGFloat = 22            // the grab strip along the top of the widget
     var paused = false, encounters = false
     let snapshotPath: String?, snapshotJS: String?
 
@@ -141,6 +145,7 @@ final class Controller: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
         web.setValue(false, forKey: "drawsBackground")
         web.onRightClick = { [weak self] e in self?.popMenu(e) }
         web.onMoved = { [weak self] in self?.savePosition() }
+        web.onDrag = { [weak self] on in self?.dragging = on; if on { self?.setFaded(false) } }
 
         panel = Panel(contentRect: NSRect(origin: .zero, size: widgetSize), styleMask: [.borderless, .nonactivatingPanel],
                       backing: .buffered, defer: false)
@@ -164,7 +169,7 @@ final class Controller: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
         if !UserDefaults.standard.bool(forKey: "hidden") { panel.orderFrontRegardless() }
         web.load(URLRequest(url: URL(string: "companions://app/index.html")!))
 
-        Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in self?.trackMouse() }
+        Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in self?.trackMouse() }
         Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] _ in self?.pump(initial: false) }
         Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in self?.checkTools() }
         // What each companion shows right now, for debugging and other tools (status lines etc.).
@@ -319,15 +324,27 @@ final class Controller: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
 
     // MARK: Mouse: click-through except over the widget; hover details
 
+    /// The widget never gets in the way: over the top grab strip it is solid and can be dragged (or
+    /// right-clicked); anywhere else on it, it fades out and clicks go straight through to what's behind.
     func trackMouse() {
-        guard panel.isVisible else { return }
-        let m = NSEvent.mouseLocation
-        let inside = panel.frame.contains(m)
-        panel.ignoresMouseEvents = !inside
-        if inside {
-            let x = m.x - panel.frame.minX, y = panel.frame.maxY - m.y
-            js("Companions.hover(\(Int(x)), \(Int(y)))"); hovering = true
+        guard panel.isVisible, !dragging else { return }
+        let m = NSEvent.mouseLocation, f = panel.frame
+        let inside = f.contains(m)
+        let handle = inside && m.y >= f.maxY - handleHeight
+        if panel.ignoresMouseEvents == handle { panel.ignoresMouseEvents = !handle }
+        setFaded(inside && !handle)
+        if handle != onHandle { onHandle = handle; js("Companions.setHandle(\(handle))") }
+        if handle {
+            js("Companions.hover(\(Int(m.x - f.minX)), \(Int(f.maxY - m.y)))"); hovering = true
         } else if hovering { js("Companions.hover(null)"); hovering = false }
+    }
+
+    func setFaded(_ on: Bool) {
+        guard on != faded else { return }
+        faded = on
+        let target: CGFloat = on ? 0.15 : 1
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion { panel.alphaValue = target; return }
+        NSAnimationContext.runAnimationGroup { ctx in ctx.duration = 0.18; panel.animator().alphaValue = target }
     }
 
     func savedOrigin() -> NSPoint {

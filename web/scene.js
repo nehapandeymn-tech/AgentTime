@@ -25,7 +25,7 @@
   let manifest = null;
   const images = {};
   let reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let paused = false, visible = true, hover = null, rafId = 0;
+  let paused = false, visible = true, hover = null, rafId = 0, handleHot = false;
   let iceKing = null;                       // {target, mode:'cast'|'resolved', start}
 
   const canvas = document.getElementById('stage');
@@ -202,6 +202,10 @@
       if (r.summary) text(r.summary, x, GROUND + 50, { size: 9.5, max: 120, color: 'rgba(255,255,255,0.55)' });
     }
 
+    // Grab handle: the only part of the widget that takes the mouse (drag it, right-click it).
+    roundRect((W / 2 - 22) * dpr, 7 * dpr, 44 * dpr, 5 * dpr, 2.5 * dpr);
+    ctx.fillStyle = handleHot ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.25)'; ctx.fill();
+
     if (paused) text('Paused', W - 14, 18, { align: 'right', size: 10, color: 'rgba(255,255,255,0.6)' });
     if (hover) drawHover(res);
   }
@@ -216,7 +220,7 @@
       r.unavailable ? 'No live status: hooks not installed or tool not running' : `${r.counts.total} open task${r.counts.total === 1 ? '' : 's'}${r.summary ? ' · ' + r.summary : ''}`,
       ago == null ? 'No events yet' : `Last update ${ago < 60 ? ago + 's' : Math.round(ago / 60) + 'm'} ago`,
     ];
-    const bw = 230, bh = 52, bx = Math.min(Math.max(8, hover.x - bw / 2), W - bw - 8), by = 8;
+    const bw = 230, bh = 52, bx = Math.min(Math.max(8, hover.x - bw / 2), W - bw - 8), by = 18;
     roundRect(bx * dpr, by * dpr, bw * dpr, bh * dpr, 8 * dpr);
     ctx.fillStyle = 'rgba(8, 10, 16, 0.92)'; ctx.fill();
     lines.forEach((l, i) => text(l, bx + 10, by + 16 + i * 14, { align: 'left', size: i ? 10 : 11, weight: i ? 500 : 700, max: bw - 20, color: i ? 'rgba(255,255,255,0.75)' : '#fff' }));
@@ -251,6 +255,7 @@
     setReducedMotion: v => { reducedMotion = v; wake(); },
     setEncounters: v => { cfg.encounters = v; wake(); },
     hover: (x, y) => { hover = x == null ? null : { x, y }; wake(); },
+    setHandle: on => { handleHot = on; wake(); },
     snapshotState: () => P.map(p => { const r = store.resolve(p); return { provider: p, state: r.state, label: r.label, x: chars[p].x, seq: chars[p].seq }; }),
     _store: store,
   };
