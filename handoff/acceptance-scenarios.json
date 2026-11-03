@@ -1,0 +1,142 @@
+[
+  {
+    "id": "confirmed_mapping",
+    "given": "Provider IDs are antigravity, claude and codex",
+    "expected": "Jake represents Antigravity; Finn represents Claude; BMO represents Codex"
+  },
+  {
+    "id": "all_idle",
+    "given": "All three connections healthy, no remaining work",
+    "expected": "One group huddle; no duplicated solo sprites"
+  },
+  {
+    "id": "one_active",
+    "given": "Only Claude starts a routine task",
+    "expected": "Finn reads map; Jake and BMO continue resting"
+  },
+  {
+    "id": "independent_tasks",
+    "given": "All three work in different phases",
+    "expected": "Each displays its own phase and stable provider label"
+  },
+  {
+    "id": "thinking_is_not_error",
+    "given": "Codex reports high thinking with zero errors",
+    "expected": "BMO concentrates, without wounds or Ice King"
+  },
+  {
+    "id": "first_retry",
+    "given": "One distinct Antigravity attempt fails and is retried",
+    "expected": "Jake retry pose; error streak is one"
+  },
+  {
+    "id": "duplicate_retry",
+    "given": "Repeat the identical eventId/attemptId",
+    "expected": "No added failure and no animation restart"
+  },
+  {
+    "id": "third_retry",
+    "given": "Three distinct consecutive attempts fail",
+    "expected": "Jake strained; other tools unaffected"
+  },
+  {
+    "id": "confirmed_recovery",
+    "given": "A new successful attempt follows failures",
+    "expected": "Streak resets; recover once; resume current work"
+  },
+  {
+    "id": "expected_test_failure",
+    "given": "Host marks a negative test as expected",
+    "expected": "Do not count it as an agent retry/error"
+  },
+  {
+    "id": "needs_approval",
+    "given": "Codex is waiting for explicit user approval",
+    "expected": "BMO awake idle; Needs approval label; no wounds"
+  },
+  {
+    "id": "long_running",
+    "given": "A healthy task takes a long time",
+    "expected": "No invented error, injury or completion"
+  },
+  {
+    "id": "completion_once",
+    "given": "One task-completed event then repeated snapshots",
+    "expected": "Celebrate once for that task/run"
+  },
+  {
+    "id": "late_progress",
+    "given": "A lower-revision progress event arrives after completion",
+    "expected": "Task stays completed; no reopening"
+  },
+  {
+    "id": "new_run",
+    "given": "Same task explicitly restarts with a new runId",
+    "expected": "New lifecycle; eligible for a new completion later"
+  },
+  {
+    "id": "multiple_tasks",
+    "given": "One Claude task completes while another runs",
+    "expected": "Finn celebrates briefly then continues work; no false sleep"
+  },
+  {
+    "id": "failure_priority",
+    "given": "One task fails while another completes",
+    "expected": "Failure stays visible; completion may use a badge"
+  },
+  {
+    "id": "cancelled",
+    "given": "Host cancels a task with no other work",
+    "expected": "Return to rest without success or injury celebration"
+  },
+  {
+    "id": "disconnect",
+    "given": "Provider connection becomes unavailable",
+    "expected": "Neutral unavailable state; preserve last truth; no fake sleep"
+  },
+  {
+    "id": "reconnect",
+    "given": "Reconnect snapshot includes previously completed tasks",
+    "expected": "Reconcile without replaying old celebrations"
+  },
+  {
+    "id": "encounter_target",
+    "given": "Two tasks request encounter mode",
+    "expected": "One Ice King, one stable target, no effects aimed at sleepers"
+  },
+  {
+    "id": "encounter_wait",
+    "given": "Encounter task waits for user input",
+    "expected": "Suspend combat; show waiting; task remains unresolved"
+  },
+  {
+    "id": "group_return",
+    "given": "Final active task finishes and celebration ends",
+    "expected": "Return solo characters then show one group huddle"
+  },
+  {
+    "id": "reduced_motion",
+    "given": "Reduced motion enabled",
+    "expected": "Static representative poses and truthful labels; no travel/combat loops"
+  },
+  {
+    "id": "light_dark_alpha",
+    "given": "Inspect all state frames on light and dark backgrounds",
+    "expected": "Transparent backgrounds and intact hats, feet, weapons; no grid clipping"
+  },
+  {
+    "id": "hidden_tab",
+    "given": "Many events arrive while view is hidden",
+    "expected": "Truth updates; resume latest state without a stale celebration burst"
+  },
+  {
+    "id": "missing_image",
+    "given": "One PNG fails to load",
+    "expected": "Provider name and textual status stay visible"
+  },
+  {
+    "id": "provider_adapter_truth",
+    "given": "No supported hook is available for a provider",
+    "expected": "Mark that provider unavailable/demo-only; never claim it is live"
+  }
+]

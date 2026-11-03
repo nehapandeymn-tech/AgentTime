@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "status": "Implementation specification; live adapters are not implemented in this pack",
+  "mappingConfirmedByUser": true,
+  "providers": {
+    "antigravity": {
+      "label": "Antigravity",
+      "character": "jake"
+    },
+    "claude": {
+      "label": "Claude",
+      "character": "finn"
+    },
+    "codex": {
+      "label": "Codex",
+      "character": "bmo"
+    }
+  },
+  "workSlotOrder": [
+    "claude",
+    "antigravity",
+    "codex"
+  ],
+  "manifestPath": "sprite-pack/manifest.json",
+  "characters": {
+    "finn": {
+      "coreAtlas": "finn-core",
+      "contextAtlas": "finn-context"
+    },
+    "jake": {
+      "coreAtlas": "jake-core",
+      "contextAtlas": "jake-context"
+    },
+    "bmo": {
+      "coreAtlas": "bmo-core",
+      "contextAtlas": "bmo-context"
+    }
+  },
+  "scene": {
+    "huddleAtlas": "group",
+    "huddleState": "huddle",
+    "minimumIdleKnowledge": "healthy connection and no active, queued, waiting or unresolved tasks",
+    "onlyWakeActiveProviders": true
+  },
+  "stateDefaults": {
+    "normalRunning": "chill",
+    "highThinking": "thinking",
+    "waiting": "idle",
+    "unavailablePose": "idle",
+    "unavailableLabel": "Status unavailable",
+    "cancelled": "rest",
+    "failed": "strained"
+  },
+  "errorRules": {
+    "retryFromConsecutiveErrors": 1,
+    "strainedFromConsecutiveErrors": 3,
+    "countDistinctAttemptsOnly": true,
+    "resetOnConfirmedSuccessfulAttempt": true,
+    "ignoreDuplicateEvents": true,
+    "longDurationAloneIsNotError": true
+  },
+  "timings": {
+    "completionHoldMs": 1800,
+    "recoveryHoldMs": 1800,
+    "completionCoalesceMs": 1000,
+    "walkLogicalPixelsPerSecond": 120,
+    "runLogicalPixelsPerSecond": 200,
+    "minimumTravelMs": 250,
+    "maximumTravelMs": 1200,
+    "sceneFadeMs": 200
+  },
+  "encounter": {
+    "enabledForExplicitTasks": true,
+    "automaticForAllWork": false,
+    "maximumIceKings": 1,
+    "atlas": "ice-king",
+    "workState": "cast",
+    "resolutionState": "resolved",
+    "decorativeDrummingDefault": false,
+    "restingCharactersExcluded": true
+  },
+  "accessibility": {
+    "respectReducedMotion": true,
+    "pauseControl": true,
+    "statusLabelsRequired": true,
+    "soundEnabledByDefault": false,
+    "representativeStaticSuccessFrameRequired": true
+  },
+  "integration": {
+    "normalizedEventSchemaVersion": 1,
+    "providerApisMustBeDiscovered": true,
+    "providerApisSpecifiedByThisConfig": false,
+    "sampleEventsAreSynthetic": true,
+    "completionIdentity": [
+      "provider",
+      "providerSessionId",
+      "taskId",
+      "runId"
+    ]
+  },
+  "note": "These are proposed production defaults. The reference demo implements only the simpler behavior documented in START-HERE-CLAUDE.txt."
+}

@@ -1,0 +1,630 @@
+ADVENTURE TIME AGENT COMPANIONS
+Complete product and implementation handoff for Claude
+Version 1.0 — 3 November 2026
+
+READ THIS FIRST
+Build a small, charming visual companion system for three AI tools. The
+user approved the supplied sprite artwork and wants the characters to
+communicate what their agents are doing. Reuse the artwork; do not replace
+it with generic icons or regenerate it without a concrete reason.
+
+USER-CONFIRMED ASSIGNMENTS
+  Antigravity = Jake the Dog (the yellow dog).
+  Claude     = Finn the Human (white hat, blue clothes, green backpack).
+  Codex      = BMO (the small turquoise game-console robot).
+  Ice King   = an optional difficult-task encounter, NOT a fourth agent.
+
+These assignments were explicitly confirmed by the user. Keep provider
+identity separate from character identity in the code. Never swap them
+based on names in sample code. A character can represent multiple tasks
+from its tool, but each tool has one visible primary companion.
+
+This ZIP is the complete handoff: this brief, configuration, sample events,
+acceptance scenarios, original PNGs, measured frame data, source prompts,
+and a reference animation demo. Extract it and open sprite-pack/preview.html.
+The demo is a local manual preview, not a connection to any real agents.
+
+1. THE EXPERIENCE
+=================
+When all three tools are genuinely idle, Finn, Jake and BMO gather into a
+small sleeping huddle. It should feel like friends waiting together at
+home, not three unrelated loading spinners.
+
+When a task starts, only its assigned character wakes and moves into a
+nearby work area. The others remain resting. When two or three tools work,
+their characters act independently. Their activity depends on the kind
+and difficulty of the work, not just a generic busy flag.
+
+Easy work is peaceful: Finn studies a map, Jake makes a sandwich, and BMO
+dances or plays. Concentration looks thoughtful. Recoverable errors look
+frustrating. Repeated errors can make a character look comically exhausted
+or mildly bandaged. Successful completion produces a short happy gesture,
+then the character returns to rest unless more work remains.
+
+Optional difficult-task mode brings in Ice King. He casts ice toward a
+working character who blocks or copes with it. Do not show constant combat
+for easy work. Ice King is also a sympathetic, eccentric character; the
+encounter ends amicably, and his peaceful drum animation is available.
+
+The character is a friendly visual metaphor for observable agent activity.
+Never fabricate internal feelings, reasoning content, progress percentages,
+or failures. A long task or long thinking phase alone is not evidence of
+an error. Pair animation with an honest short status label.
+
+2. WHAT IS FINISHED, AND WHAT IS STILL TO BUILD
+==============================================
+FINISHED ASSETS / REFERENCE IMPLEMENTATION
+- Eight transparent PNG atlases with 322 measured source-frame rectangles.
+- Static front, back, left, right and two three-quarter views for all four
+  characters; left/right walking and running for Finn, Jake and BMO.
+- Character-specific rest, normal work, concentration, error, strain,
+  encounter, recovery and completion sequences.
+- A four-sequence group sheet and six-sequence Ice King sheet.
+- A local HTML/JavaScript preview, simple signal resolver, measured frame
+  coordinates, timing metadata, original prompts and research references.
+- Alpha, nonempty frame bounds, syntax and basic signal mapping checked.
+
+TO BUILD IN THE USER'S ACTUAL APP
+- Discover the real app, framework and available agent-event interfaces.
+- Add adapters for Antigravity, Claude and Codex using supported events.
+- Implement the robust lifecycle, aggregation, transitions and event
+  deduplication specified below; these are not all present in the demo.
+- Attach the renderer to the app's chosen surface: small panel, bottom
+  strip, widget or desktop overlay appropriate to its architecture.
+- Test visual playback and real end-to-end event flows in that app.
+
+The browser here blocked local-file preview navigation, so the demo was
+not visually exercised in a browser during asset production. The full
+sheets were inspected, but generated motion has not been hand-cleaned.
+Treat the demo as reference code, not a production integration.
+
+No target repository, framework, agent hook/API names, or permissions were
+provided. Do not invent them or claim a live connection exists. Inspect the
+user's project first. Ask for a genuinely missing connection detail only
+after checking what is already available. This handoff authorizes no new
+external account access on its own.
+
+3. CHARACTER LANGUAGE
+=====================
+CLAUDE / FINN
+- Easy task: calmly read an adventure map, point at a route, nod.
+- Thinking: hand on chin, scratch hat, head tilt, thought squiggle.
+- Ordinary active work, optional: practice safe golden-sword movements.
+- Retry: tangled map, sweat, facepalm, try again.
+- Strain: kneel with sword grounded; tired face and small cheek bandage.
+- Encounter: face right and block little icy fragments with the sword.
+- Recover: stand up, brush off snow, regain confidence.
+- Complete: proud golden-sword salute and small happy hop.
+- Rest: sit beside backpack, sword laid safely alongside.
+
+ANTIGRAVITY / JAKE
+- Easy task: assemble and nibble a sandwich.
+- Thinking: chin on a stretchy hand, a gently elongated thoughtful pose.
+- Ordinary active work, optional: elastic boxing practice.
+- Retry: stretchy arms become a harmless knot, tug and untangle.
+- Strain: tired pancake shape, tiny bandage, comic dizzy stars.
+- Encounter: stretch into a shield, then clear ice with a stretchy punch.
+- Recover: unflatten, untangle, shake off snow, grin.
+- Complete: stretchy arms-up celebration and hop.
+- Rest: curl up as a soft golden dog cushion.
+
+CODEX / BMO
+- Easy task: dance and make music; controller play is another existing loop.
+- Thinking: concentrated screen face with small thinking dots.
+- Ordinary active work, optional: controller button-tapping.
+- Retry: amber exclamation, worried face, attempt to reset.
+- Strain: tired screen, a simulated crack mark and bandage on the case.
+- Encounter: brace with controller and make small game-like sparks.
+- Recover: screen brightens, happy heart, regain a ready stance.
+- Complete: green check on the screen and victory dance.
+- Rest: sit with sleepy screen eyes and slight sway.
+
+ICE KING
+- Use crown, blue face, pointed nose, white beard and blue robe.
+- Left-facing ice cast opposes the companions' right-facing encounters.
+- Also available: idle, hover left, drum-playing, friendly resolution.
+- Do not let one agent's challenge injure or activate the other agents.
+- He is not a real error source. A label must still say the actual status.
+
+4. CANONICAL STATES AND THEIR MEANING
+===================================
+Separate three layers:
+  task truth: running, waiting, completed, failed, cancelled, etc.
+  visual state: chill, thinking, retry, strained, complete, etc.
+  choreography: waking, walking to a slot, returning to the huddle.
+Changing choreography must never rewrite task truth.
+
+REST       No active/queued/waiting work and connection is known healthy.
+IDLE       Awake waiting: user input, approval, dependency, or queued task.
+CHILL      Running work progressing normally; default peaceful activity.
+THINKING   An explicit planning/concentration signal; still progressing.
+PRACTICE   Optional alternate work loop selected by task activity/category.
+RETRY      One or two consecutive meaningful failed attempts for a task.
+STRAINED   Three+ consecutive failed attempts, explicit failure, or an
+           explicit pressure/strain signal. Mild, non-graphic comedy.
+ENCOUNTER  Explicit difficult-task activity; optional Ice King battle.
+RECOVER    A previously struggling task has actually resumed successfully.
+COMPLETE   A task was explicitly reported successfully completed.
+WALK/RUN   Travel between scene positions, not evidence of task difficulty.
+VIEWS      Static orientation poses for positioning and inspection.
+
+Disconnected / unknown and failed / blocked are distinct logical states
+even if they reuse an existing pose. Missing telemetry -> neutral idle pose
+plus 'Status unavailable'; never silently treat lost contact as sleep,
+completion, failure, or heavy thinking. Waiting for permission is not an
+error and should not produce wounds.
+
+5. TASK TYPE AND DIFFICULTY SELECTION
+====================================
+Use available task metadata to select a suitable loop:
+- Research, reading, writing, routine edits, organization: chill.
+- Explicit planning, analysis or complex decision phase: thinking.
+- Executing/testing/building with normal progress: chill by default;
+  optional practice if the user prefers more action.
+- Explicit high-difficulty challenge: encounter only if enabled and
+  supplied by the host, task metadata, or a deliberate user setting.
+- A real retriable failure: retry; sustained failure streak: strained.
+
+The labels map to each character's own animation: coding does not require
+Finn to become a computer, or BMO to acquire Finn's sword. Preserve identity.
+With sparse telemetry, use running -> chill. Do not classify from secret
+reasoning, token counts, elapsed time, or broad guesses about task titles.
+An optional future classifier may use user-approved task categories and
+must expose an 'unknown' fallback. It is not required for the first version.
+
+6. EVENT CONTRACT — TARGET DESIGN, NOT AN EXISTING PROVIDER API
+==============================================================
+Normalize each real provider's events into an internal event envelope.
+The names here are proposed application fields; they are not claims about
+Claude, Codex or Antigravity's current APIs. Adapters own that translation.
+
+Required envelope:
+  schemaVersion: 1
+  eventId: globally unique deduplication key
+  provider: antigravity | claude | codex
+  providerSessionId: namespace for the provider instance/session
+  taskId: stable identifier for the actual task
+  runId: attempt/session of that task (changes on an explicit restart)
+  revision: monotonic increasing integer within taskId + runId
+  occurredAt: ISO 8601 timestamp with explicit timezone
+  type: normalized event type
+  payload: small structured object; do not include full conversations
+
+Example event types:
+  task.started, task.progress, task.waiting, task.resumed,
+  task.attempt_failed, task.attempt_succeeded,
+  task.completed, task.failed, task.cancelled
+
+Suggested payload fields when available:
+  taskCategory: research | writing | planning | coding | testing | other
+  thinking: normal | high | unknown
+  activity: chill | practice | encounter | automatic
+  difficulty: normal | high | unknown
+  waitReason: user_input | approval | dependency | rate_limit | queued
+  attemptId: identifier to deduplicate an individual failed attempt
+  retriable: boolean
+  shortLabel: concise user-visible status, safely rendered as plain text
+  progress: optional actual fraction 0..1; omit when unmeasured
+
+Connection health is separate from task truth. Track connection events per
+provider session, using a documented host heartbeat only when one exists.
+A task that emits no progress for a while may still be healthy. Do not apply
+a universal silence timeout to an event stream that promises no heartbeat.
+
+Maintain a task record with status, category, active phase, last revision,
+consecutive failure count, last meaningful progress, wait reason, and the
+completion-event/animation bookkeeping. See example-events.ndjson.
+
+7. EVENT ORDERING AND IDEMPOTENCE
+================================
+1. Validate provider and schema; ignore unknown/malformed messages safely.
+2. Deduplicate eventId. A repeated message must not replay an effect.
+3. For the same task/run, reject revision <= last applied revision.
+4. Keep terminal states stable. Late progress from a completed run cannot
+   reopen it; an explicit new runId/start event is needed.
+5. Count a failed attempt once using attemptId, not once per log line.
+6. Count consecutive failures per task/run, never across unrelated tasks.
+7. Reset the streak on an actual successful retry/operation. A heartbeat,
+   generic log, or elapsed time does not prove recovery.
+8. Render from the latest task store. Rendering must not mutate source truth.
+
+Use a monotonic local clock for animation timing. Use revisions, not wall
+clock comparisons alone, for ordering. Bound the deduplication cache;
+persist completion-consumed state as appropriate for the host session.
+On reload/reconnect, reconcile a current snapshot. Already completed tasks
+may be shown in history but must not trigger old celebrations again.
+
+8. PER-TASK VISUAL PRECEDENCE
+============================
+Apply this to current truth before choreography:
+1. Unknown/disconnected source: neutral pose plus unavailable indicator;
+   preserve the last known task state separately for reconciliation.
+2. Newly completed task not yet celebrated: enqueue one completion gesture.
+3. Failed task: strained pose briefly, then a subdued idle/strained pose
+   and persistent failure label until acknowledged or resolved.
+4. Cancelled task: return to rest, no success gesture.
+5. Waiting/queued: idle with the reason; suspend combat and wound loops.
+6. Running with a new confirmed recovery: recover once, then recompute.
+7. Running with >=3 consecutive failed attempts: strained.
+8. Running with 1–2 consecutive failed attempts: retry.
+9. Running with explicit high thinking: thinking.
+10. Running with explicit encounter and encounters enabled: encounter.
+11. Running with explicit practice: practice.
+12. Other running work: chill.
+13. No remaining work, healthy connection: rest.
+
+For a newly completed task, the terminal success overrides old retry data.
+A high-thinking signal does not override a known failure streak until it is
+cleared by meaningful success. Keep these rules deterministic and testable.
+
+9. MANY TASKS, ONE COMPANION PER TOOL
+====================================
+Use one visible Jake, Finn and BMO, with a small task count or detail popover
+when necessary. Do not clone the character for each subagent by default.
+
+Choose the provider's dominant ongoing task using this default order:
+  unacknowledged terminal failure > strained running task > retrying task
+  > task needing user action > encounter > thinking > normal running
+  > dependency/queue waiting > idle
+Within a rank, prefer the user's focused task, then the oldest unresolved
+task for stability. Do not swap focus on every progress update. Show counts
+such as '1 task needs help · 2 running' so aggregation does not hide work.
+
+Completion is a one-shot notification layered over that ongoing selection:
+- If another task needs help or has a critical unresolved failure, do not
+  hide it behind a celebration; show a small completion count/badge instead.
+- Otherwise play a short completion gesture, then return to the actual
+  dominant running/waiting state, not automatically to sleep.
+- Coalesce rapid completions into one gesture with a count, within a
+  default 1-second window. Keep individual task results in the details.
+- Only rest when no tasks remain active, queued, waiting or unresolved,
+  and connection state is healthy/known.
+
+10. COMPLETION AND RECOVERY ARE ONE-SHOT
+========================================
+Completion eligibility key: provider + providerSessionId + taskId + runId.
+Record that the completion was consumed before scheduling its animation.
+Repeated snapshots and reconnects cannot restart it. An explicit new run
+may celebrate later when it independently completes.
+
+The existing complete sequence is six frames at 5 fps = 1.2 seconds.
+Reference demo holds its last frame for another 1.8 seconds. Use that as
+the initial default: about 3 seconds total, then recompute actual state.
+Its final frame is often a settled pose; do not promise that the sword or
+check remains raised during the entire hold.
+
+The recover sequence is six frames at 4 fps = 1.5 seconds. The demo adds
+1.8 seconds of hold; the production default may retain this but must allow
+urgent errors, waiting requests or new task truth to interrupt it.
+Do not show recovery merely because a timeout expired.
+
+11. HUDDLE AND SCENE CHOREOGRAPHY
+================================
+Use a stable spatial layout. Provider labels must remain clear even when a
+character is moving. Default left-to-right work slots: Claude/Finn,
+Antigravity/Jake, Codex/BMO. A configuration can change the order later.
+
+All idle:
+- Show exactly one group:huddle sprite. Do not draw three additional solo
+  sprites on top of it. Its left/center/right characters are Finn/Jake/BMO.
+- Loop at 2 fps. Keep movement small and quiet.
+
+One task starts:
+- Replace the group sprite with the three solo rest poses at matching
+  approximate positions. Move only the working character to its work slot.
+- Use walk_right or walk_left according to travel direction, then its
+  chosen work animation. Others remain near each other resting.
+- The existing group:wake wakes everyone, so do NOT use it when only one
+  tool wakes. That would convey the wrong status.
+
+Two/three active:
+- Give each character a stable slot; activity and animation clocks are
+  independent. Position idle characters in the rest area.
+- Avoid frequent reflow when another character changes state.
+
+Task ends:
+- Complete once if successful; recover only with actual recovery.
+- If more work exists for that provider, return to its selected work state.
+- Otherwise walk back toward the rest area and settle into solo rest.
+- When all three are healthy-idle and no transition is active, swap the
+  three rest sprites for the single group:huddle.
+
+Existing group:wake, group:return and group:complete are useful for
+simultaneous group events, not for falsely involving sleeping characters.
+Group celebration is optional and should be reserved for a real shared
+batch completion. Per-tool completion remains the default.
+
+Suggested travel defaults: 180–400 ms wake/settle transition, 120 logical
+pixels/second walking, 200 running, clamp travel to 250–1200 ms as space
+permits. These are design starting points, not verified physical motion.
+Short travel distances should use idle/pose changes rather than a frantic
+two-frame run. Never move someone into a sword or projectile path.
+
+12. ICE KING ENCOUNTER RULES
+============================
+Encounters are optional and off unless explicitly selected for the task.
+Reserve space on the far right, with the active character facing right
+and Ice King casting left. Keep effects away from resting companions.
+Show at most one Ice King. If several tools are in encounter mode, choose
+the focused/highest-priority task as his visible target. Others retain
+their own activity and truthful labels; do not duplicate him across slots.
+Do not let automatic target changes happen faster than the scene can read.
+
+Suspend Ice King casting when the selected task is waiting, fails, loses
+telemetry, or finishes. On successful resolution, use ice-king:resolved
+once, then remove him. A 150–250 ms fade is acceptable; use an instantaneous
+change in reduced-motion mode. Failure does not trigger a victory pose.
+Peaceful drumming can be an explicitly selected decorative mode, but keep
+it off by default so his presence continues to communicate a challenge.
+
+13. EXACT ASSET INVENTORY
+========================
+Path prefix for all files below: sprite-pack/
+
+finn-core.png   1024x1536   54 frames
+jake-core.png   1024x1536   54 frames
+bmo-core.png    1024x1536   54 frames
+finn-context.png 1254x1254  36 frames
+jake-context.png 1254x1254  36 frames
+bmo-context.png  1254x1254  36 frames
+ice-king.png     1254x1254  36 frames
+group.png        1536x1024  16 frames
+
+manifest.json is the authoritative source-rectangle data.
+manifest.js contains the same data as window.SPRITE_MANIFEST.
+Three *prompts.json files contain the original generation instructions.
+Prompted dimensions differ from actual output sizes: actual PNGs and the
+manifest win. Do not regenerate or slice according to the prompt sizes.
+
+CORE ROWS: six frames each; row numbers below are human-facing, one-based.
+1 views        1 fps in inspector; use a static frame in normal UI
+2 idle         3 fps loop
+3 walk_right   8 fps loop
+4 walk_left    8 fps loop
+5 run_right   11 fps loop
+6 run_left    11 fps loop
+7 practice     7 fps loop
+8 complete     5 fps once
+9 rest         2 fps loop
+
+CONTEXT ROWS: six frames each.
+1 chill        4 fps loop
+2 thinking     3 fps loop
+3 retry        4 fps loop
+4 strained     3 fps loop
+5 encounter    6 fps loop
+6 recover      4 fps once
+
+ICE KING ROWS: six frames each.
+1 views (1 fps inspector); 2 idle (3); 3 cast (6); 4 hover (5);
+5 drums (5); 6 resolved (4, once).
+
+GROUP ROWS: four frames each.
+1 huddle (2 fps loop); 2 wake (3 once); 3 return (3 once);
+4 complete (5 once).
+
+View frame indices: 0 front, 1 right, 2 back, 3 left, 4 front
+three-quarter, 5 back three-quarter. The exact diagonal direction varies
+by character drawing; inspect it instead of assuming a shared handedness.
+There are no front/back walking or running cycles in this pack. All-side
+static views exist, but full eight-direction locomotion is future artwork.
+
+14. RENDERING CONTRACT
+======================
+Generated frames are NOT uniformly spaced. Do not divide a sheet into a
+guessed regular grid. Source coordinates were measured from actual alpha
+and whitespace, with anchors calculated to reduce placement drift.
+
+For atlas.states[state].frames[index], use:
+  x, y, w, h   source rectangle in original PNG pixels
+  anchorX     local horizontal alignment point within the rectangle
+  anchorY     local baseline anchor; may lie below the cropped rectangle
+Atlas.referenceHeight is a suggested normalization height.
+
+Canvas drawing example:
+  const seq = atlas.states[state];
+  const tick = Math.floor(elapsedMs * seq.fps / 1000);
+  const i = seq.loop ? tick % seq.frames.length
+                     : Math.min(tick, seq.frames.length - 1);
+  const f = seq.frames[i];
+  const scale = desiredReferenceHeight / atlas.referenceHeight;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(image, f.x, f.y, f.w, f.h,
+    Math.round(anchorX - f.anchorX * scale),
+    Math.round(anchorY - f.anchorY * scale),
+    Math.round(f.w * scale), Math.round(f.h * scale));
+
+Use the new state's elapsed animation clock, not time since page load.
+Do not restart a looping animation for a repeated identical state update.
+Use manifest data, not row numbers, in production code. The row lists are
+for inspection. Preserve actual alpha; hidden RGB in transparent pixels is
+not a background. Do not flatten the PNGs or add a checkerboard image.
+
+Use nearest-neighbor sampling and integer destination positions. Integer
+scaling is preferable where size permits; noninteger scale may shimmer.
+Coordinate devicePixelRatio correctly if rendering to a high-DPI canvas.
+Respect each sprite's natural proportions; no independent width/height
+stretching. Keep BMO visibly smaller than Finn/Jake in the scene.
+
+Suggested display reference heights: Finn/Jake about 48–72 logical px,
+BMO 36–54, Ice King 60–84, tuned after testing at actual app density.
+The demo uses larger values to inspect artwork. Its normalization is a
+starting point, not a guarantee of identical perceived size across sheets.
+
+15. QUIET MOTION, ACCESSIBILITY AND INTERACTION
+==============================================
+- Label providers, not just fictional characters: 'Claude · Thinking'.
+- Show wait/error/connection status in text as well as motion and color.
+- Respect prefers-reduced-motion and add a user pause toggle.
+- Reduced motion: no travel, squash loops, projectiles or repeated flashes;
+  choose a representative static pose, with labels preserving all meaning.
+- A static COMPLETE pose should show a visible success gesture, not frame
+  zero if it is neutral. Similarly choose an appropriate error pose.
+- The reference demo currently freezes at frame zero for reduced motion;
+  improve this in production as specified here.
+- Default to no sound. Decorative sprites should not steal keyboard focus,
+  block controls, capture drag gestures, or become unrelated tab stops.
+- If a status popover is interactive, make it keyboard accessible and
+  show task names/counts without requiring animation interpretation.
+- Announce meaningful changes once, not on every animation frame.
+- On hover, optional detail: provider, current task, phase, counts, last
+  known update. Do not show private reasoning or full prompts by default.
+- Keep comic wounds mild: bandage, fatigue, screen glitch; no blood.
+
+16. ARCHITECTURE TO IMPLEMENT
+=============================
+provider adapters -> normalized events -> task store -> per-tool resolver
+-> transition/one-shot coordinator -> sprite scene renderer
+
+Suggested modules (adapt filenames to the existing project):
+  agentAdapters      supported provider integrations only
+  taskStore          event validation, ordering, deduplication, aggregation
+  companionResolver  pure deterministic task-to-visual-state mapping
+  transitionManager  one-shots, travel, huddle membership, interruption
+  spriteRenderer     manifest loading, anchors, FPS, alpha, canvas/engine
+  companionConfig    confirmed mapping, timings, thresholds, preferences
+
+Keep animations downstream of events. Do not let a pose issue shell
+commands, submit prompts, retry a real task, dismiss an error or change
+provider permissions. An animation is observation, not task control.
+Actual retries must be performed by the host agent system and then
+reported back through events.
+
+Do not re-render the whole application at sprite FPS. Preload/cache the
+eight images once, use one animation scheduler where appropriate, and
+stop visual work when hidden/paused. Task truth must keep updating while
+hidden. On resume, show the latest state without replaying every old
+transition or a burst of stale completions.
+
+If a PNG fails to load, keep the provider name and textual status visible
+with a neutral fallback. Do not make a missing image look like a task error.
+
+17. REFERENCE DEMO API AND IMPORTANT LIMITS
+==========================================
+In sprite-pack/preview.html the existing global API accepts CHARACTER IDs:
+  setAgentSignal('finn', {status:'running', thinking:'high'});
+  setAgentSignal('jake', {status:'running', consecutiveErrors:1});
+  setAgentSignal('bmo', {status:'running', activity:'encounter'});
+  setAgentSignal('finn', {status:'completed'});
+  setAgentState('jake', 'walk_left');
+
+Map real providers first:
+  const characterFor = {antigravity:'jake', claude:'finn', codex:'bmo'};
+  setAgentSignal(characterFor[event.provider], derivedSnapshot);
+
+agent-controller.js also exports AgentSprites.createController() in a
+browser, or CommonJS exports for inspection/testing. It stores one simple
+state per CHARACTER, not full multi-task history. Signals are full snapshots:
+omitted old errors clear, rather than persisting accidentally.
+
+Current demo limitations that Claude should address:
+- No live agent adapters, eventId/runId/revision handling or task store.
+- No multiple-task aggregation or reliable completion deduplication.
+- Complete always returns to rest, recover always to chill; production
+  must recompute actual state and must not hide other ongoing work.
+- Repeated completed snapshots after returning to rest can celebrate again.
+- Unknown/default signals resolve to rest; production must distinguish
+  unavailable telemetry from confirmed idle.
+- Character positions change directly; group-to-solo walking transitions
+  and stable work slots are proposed behavior, not implemented here.
+- The demo may draw Ice King for multiple encounter states without target
+  selection. Production must use the single-target rule above.
+- Views metadata is loop=true for inspection; normal UI should choose a
+  fixed directional pose rather than continuously rotating characters.
+- In the demo, the extra-asset inspector intentionally loops one-shots;
+  normal runtime must honor one-shot completion/recovery semantics.
+- Stop the manual story before applying real signals; otherwise its timed
+  steps can overwrite them. Demo controls must not affect live telemetry.
+
+The confirmed provider mapping is used in the handoff copy's visible card
+labels. Character IDs, atlas filenames and original artwork are unchanged.
+
+18. FAILURE COUNTS, LABELS AND SAMPLE SITUATIONS
+===============================================
+Consecutive error thresholds: 1–2 -> retry, 3+ -> strained by default.
+These are configurable visual heuristics. They do not diagnose the task.
+Expected test failures in a deliberate test-driven cycle are not necessarily
+agent failures; the adapter must use the host's semantic error/retry signal,
+not blindly count every nonzero exit or red log line.
+
+Rate limiting with a known wait/retry-after is waiting, not automatically
+wounded. Missing user input or approval is waiting. A failed attempt that
+the system actually retries contributes once to its task's error streak.
+Cancelled work quietly returns; it does not celebrate or act injured.
+
+Examples:
+A. Everyone idle -> group huddle.
+B. Claude researches -> Finn reads map, Jake/BMO sleep nearby.
+C. Codex plans deeply -> BMO thinking; Finn continues independently.
+D. Antigravity retries once -> Jake's arms knot; others unaffected.
+E. The same retry event repeats -> no extra count, no restarted animation.
+F. Antigravity fails three distinct attempts -> Jake exhausted/bandaged.
+G. Its next attempt succeeds -> Jake recover once, then current work state.
+H. Claude's difficult-task encounter ends -> Finn salute, Ice King resolves,
+   then Finn returns only if Claude has no other work.
+I. Codex waits for approval -> BMO awake idle with 'Needs approval'.
+J. Connection drops -> neutral/unavailable label, no invented outcome.
+K. Two Claude tasks: one completes, one still runs -> short Finn gesture,
+   then back to work; no false all-idle huddle.
+
+19. ACCEPTANCE CRITERIA
+=======================
+Use acceptance-scenarios.json as a concise checklist alongside these rules.
+- The confirmed tool-to-character mapping appears everywhere.
+- All-rest draws one group sprite with exactly three characters.
+- One active provider animates only its assigned companion.
+- All combinations of active/resting providers remain readable.
+- Easy work is peaceful; high thinking does not imply wounds or failure.
+- Real retry streaks progress correctly and reset only on real success.
+- Duplicate/out-of-order events cannot increase counts or reopen tasks.
+- Completion plays once per task/run; reconnect cannot replay old results.
+- One completed task does not put a still-busy provider to sleep.
+- Waiting, failure, cancellation and unavailable connection are distinct.
+- Ice King is optional, has one target, and does not attack sleepers.
+- Idle companions return to the huddle only when genuinely idle.
+- Measured frames render without clipping on light and dark backgrounds.
+- Controls, labels, reduced motion, high-DPI and hidden-tab behavior work.
+- Missing assets do not erase task status or produce fake agent errors.
+- No invented real provider API integration is presented as finished.
+
+20. IMPLEMENTATION ORDER AND DELIVERY
+=====================================
+1. Inspect the target app and locate its real task lifecycle events.
+2. Read this brief, companion-config.json and sprite-pack/manifest.json.
+3. Run the local preview; inspect at intended widget size.
+4. Add a renderer using the supplied PNGs and measured rectangles.
+5. Implement and test the pure task store, resolver and deduplication.
+6. Add supported provider adapters one at a time, with honest unavailable
+   fallbacks for tools that cannot expose live state yet.
+7. Add stable scene positions, huddle transitions and completion handling.
+8. Test real starts, waits, retries, failures, successes and reconnects.
+9. Report which providers are live, which are demo-only, tests run and any
+   remaining artwork or motion cleanup. Do not silently call a demo live.
+
+Future enhancements, not required for the first implementation: extra
+peaceful activities, front/back motion cycles, hand-cleaned pixel loops,
+task-specific props, shared successful-batch celebrations, optional themes.
+Keep the current approved characters and behavior central.
+
+21. RESEARCH AND ART PROVENANCE
+===============================
+Finn's early golden sword, Scarlet / Golden Sword of Battle:
+https://adventuretime.fandom.com/wiki/Finn%27s_swords
+Jake's laid-back character and stretchy shapeshifting powers:
+https://adventuretime.fandom.com/wiki/Jake
+BMO's living game-console identity, games, imagination and musical play:
+https://adventuretime.fandom.com/wiki/BMO
+Ice King's crown, ice powers, Simon Petrikov identity and loneliness:
+https://en.wikipedia.org/wiki/Ice_King
+Ice King's character details, including drumming:
+https://adventuretime.fandom.com/wiki/Ice_King
+
+These sources informed the design; the exact status metaphors, error poses,
+map/sandwich/game loops and agent roles are custom choices, not canonical
+scenes. The user's pixel-art Finn image supplied the visual direction.
+All sheets were produced with built-in image generation. Original PNGs and
+alpha are preserved. Some shapes/scale vary slightly frame-to-frame; manual
+animation cleanup may be needed at final production size. This pack is an
+unofficial Adventure Time character treatment, not official show artwork.
+
+END OF HANDOFF

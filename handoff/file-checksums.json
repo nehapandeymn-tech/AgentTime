@@ -1,0 +1,23 @@
+{
+  "START-HERE-CLAUDE.txt": "9761aea9253c02dd5845f3aa1f15de72b93f99621d5ba57809c11375b5c8f8ee",
+  "acceptance-scenarios.json": "12dccd4b0bfee906911439c7b41f20af4745f81b75a7264b42936fa5e4f5aa70",
+  "companion-config.json": "e7e19dfb3c659cb8b83d8657861ba415f5385065eb4656bc462667b2772a3e44",
+  "example-events.ndjson": "f5d88a69542a0c335586421473cd75e146fe89bdc582e52e897ac18596c8fa7d",
+  "sprite-pack/README.txt": "601bac0da5f66766978aef73593139f5873756272ba90b88fa55f91beb584e1d",
+  "sprite-pack/agent-controller.js": "139168f8e7c05e3ac52f6277da1add52424fe9a627a012627a5b5e2d9ab41c30",
+  "sprite-pack/bmo-context.png": "5df63679d8e094b818bfaead3226a920c84d469a34ef6e8749a4fe4f7cd2de36",
+  "sprite-pack/bmo-core.png": "02e1fd4c0f018deda33227e79f3c62bda721df5851fc4e72ac015e7f559e5bb4",
+  "sprite-pack/context-prompts.json": "4dcaab50ca45322893e9c1e5d36ba84f267b0bbb4b931bee121736d40c53230b",
+  "sprite-pack/finn-context.png": "4af22e8fa5145e6eea44b758f2cc645991e853534b8d77dc1ac1c4c9948b71df",
+  "sprite-pack/finn-core.png": "728d288b212451f7a4713ca346e0991ebc6d566d12dec737131636d25281e36a",
+  "sprite-pack/generation-prompts.json": "d5badeede3c3269a91d816350bf83065576c18436e020e5cd346849065b3699f",
+  "sprite-pack/group-and-ice-king-prompts.json": "1aa62e218a12b26bc70dc6b509df0af60e2ca7e1db80ceba92b924ddd03ff803",
+  "sprite-pack/group.png": "0ee8e947a8ae2812aa3b39127db6ff0df6d0ec5db0fcfd6ee03822efedd34202",
+  "sprite-pack/ice-king.png": "02ee401e3df33cec62cac919930d4c1903ea5e08974704b1a8699113096f55d9",
+  "sprite-pack/jake-context.png": "135df50a198c361b3fcffb4d49cd3b45069352e8f6296a88b3f6edde6c09a647",
+  "sprite-pack/jake-core.png": "4e9dca3116470a5d8df54a472656e07b37cdde0d5870cad38d49bf1ed6b17539",
+  "sprite-pack/manifest.js": "bf71211141fe865cb8538c40ac2d3e4885f7bab43d9f67fcdf704ec76b358478",
+  "sprite-pack/manifest.json": "bbd8ae6894acfbfaca0552ba49c9597158bab1d2a1fe84148028248515ed02e8",
+  "sprite-pack/preview.html": "1f4408874d3dd3d92174ca60a50c67dc60f49e6f3a75034f19df173ca0bef65f",
+  "sprite-pack/preview.js": "af59aa3421735c2386b058f1fc30d75dc9f7c0eb111d4922f06c93aa9694cdef"
+}
