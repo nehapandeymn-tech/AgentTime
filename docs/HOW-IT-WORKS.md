@@ -15,7 +15,6 @@ The design follows `handoff/START-HERE-CLAUDE.txt`. The art in `web/sprites/` is
 ## Use it
 
 - Only the top grab strip (22 pt) takes the mouse: drag or right-click it there. Anywhere else over the widget it fades to 15% and clicks pass through to the windows behind.
-- Hover a column for details (open tasks, last update).
 - Right-click it, or use the menu-bar icon, for: Hide/Show, Pause Animations, Ice King on Tough Tasks, Clear Failure Labels, Move to Bottom-Right Corner, Quit.
 - `~/.agent-companions/state.json` holds what each companion shows right now (updated every 2 s).
 

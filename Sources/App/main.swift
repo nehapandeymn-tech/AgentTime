@@ -334,9 +334,6 @@ final class Controller: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
         if panel.ignoresMouseEvents == handle { panel.ignoresMouseEvents = !handle }
         setFaded(inside && !handle)
         if handle != onHandle { onHandle = handle; js("Companions.setHandle(\(handle))") }
-        if handle {
-            js("Companions.hover(\(Int(m.x - f.minX)), \(Int(f.maxY - m.y)))"); hovering = true
-        } else if hovering { js("Companions.hover(null)"); hovering = false }
     }
 
     func setFaded(_ on: Bool) {

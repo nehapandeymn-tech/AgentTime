@@ -207,38 +207,6 @@
     ctx.fillStyle = handleHot ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.25)'; ctx.fill();
 
     if (paused) text('Paused', W - 14, 18, { align: 'right', size: 10, color: 'rgba(255,255,255,0.6)' });
-    if (hover) drawHover(res);
-  }
-
-  /** One combined card for all three agents, shown while the cursor is on the top grab bar. */
-  function drawHover(res) {
-    const age = p => {
-      const ts = [...store.tasks.values()].filter(t => t.provider === p).map(t => t.updatedAt);
-      if (!ts.length) return '';
-      const s = Math.max(0, Math.round((Date.now() - Math.max(...ts)) / 1000));
-      return s < 60 ? `${s}s ago` : s < 3600 ? `${Math.round(s / 60)}m ago` : `${Math.round(s / 3600)}h ago`;
-    };
-    const working = P.filter(p => !res[p].resting && !res[p].unavailable).length;
-    const needYou = P.reduce((n, p) => n + res[p].counts.needsUser, 0);
-    const help = P.reduce((n, p) => n + res[p].counts.needsHelp, 0);
-    const head = [working ? `${working} working` : 'Everyone resting', needYou ? `${needYou} waiting on you` : '', help ? `${help} struggling` : '']
-      .filter(Boolean).join(' · ');
-
-    const bx = 8, by = 18, bw = W - 16, rowH = 17, bh = 26 + P.length * rowH + 6;
-    roundRect(bx * dpr, by * dpr, bw * dpr, bh * dpr, 9 * dpr);
-    ctx.fillStyle = 'rgba(8, 10, 16, 0.94)'; ctx.fill();
-    text(head, bx + 12, by + 17, { align: 'left', size: 11, weight: 700, max: bw - 24, color: '#fff' });
-    P.forEach((p, i) => {
-      const r = res[p], y = by + 26 + (i + 1) * rowH - 4;
-      const ch = cfg.characters[p];
-      const dot = r.unavailable ? STATE_COLOR.unavailable : STATE_COLOR[chars[p].oneShot ? 'chill' : r.state] || STATE_COLOR.idle;
-      ctx.fillStyle = dot;
-      ctx.beginPath(); ctx.arc((bx + 16) * dpr, (y - 4) * dpr, 3 * dpr, 0, Math.PI * 2); ctx.fill();
-      text(`${cfg.labels[p]} · ${{ finn: 'Finn', jake: 'Jake', bmo: 'BMO' }[ch] || ch}`, bx + 26, y, { align: 'left', size: 10.5, weight: 700, max: 120 });
-      const status = r.unavailable ? 'Not connected' : statusLine(p, r) + (r.summary ? ` (${r.summary})` : '') + (r.badge ? `  ✓${r.badge}` : '');
-      text(status, bx + 150, y, { align: 'left', size: 10.5, max: bw - 150 - 60, color: dot });
-      text(age(p), bx + bw - 12, y, { align: 'right', size: 9.5, color: 'rgba(255,255,255,0.5)' });
-    });
   }
 
   // ------------------------------------------------------------ loop
