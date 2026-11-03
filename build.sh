@@ -2,8 +2,8 @@
 # Builds build/Agent Companions.app. ./build.sh --install also copies it to /Applications.
 set -euo pipefail
 cd "$(dirname "$0")"
-NODE="$(command -v node || echo "$HOME/.local/node/bin/node")"
-"$NODE" --test tests/core.test.js
+NODE="$(command -v node || true)"
+if [[ -n "$NODE" ]]; then "$NODE" --test tests/core.test.js; else echo "node not found: skipping logic tests"; fi
 
 APP="build/Agent Companions.app"
 TARGET="$(uname -m)-apple-macos14.0"

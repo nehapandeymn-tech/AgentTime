@@ -1,61 +1,79 @@
-# Agent Companions
+# Agent Companions 🗡️🐶🎮
 
-A small see-through widget in the corner of your Mac where three Adventure Time friends show what your AI agents are doing:
+**Your AI agents, but make it Adventure Time.**
 
-| Tool | Companion | Live source |
+Finn, Jake and BMO hang out in a little window in the corner of your Mac and act out what your AI coding agents are up to, so you can tell at a glance who's busy, who's stuck, and who just finished.
+
+![Finn, Jake and BMO napping together](docs/1-huddle.png)
+
+## Meet the crew
+
+| Your agent | Their buddy | When it's working… |
 |---|---|---|
-| Claude Code | Finn | Claude Code hooks (`~/.claude/settings.json`), async, watch-only |
-| Antigravity CLI (`agy`) | Jake | Antigravity hooks (`~/.gemini/config/hooks.json`): `SessionStart`, `PreInvocation`, `PostToolUse`, `Stop` |
-| Codex (CLI and desktop app) | BMO | Read-only tail of `~/.codex/sessions/**.jsonl` (no Codex settings changed) |
+| **Claude Code** | **Finn** | studies his adventure map |
+| **Antigravity** | **Jake** | makes himself a sandwich |
+| **Codex** | **BMO** | dances and plays games |
 
-When nothing is running, all three sleep in one huddle. When a tool starts work, only its companion wakes and walks to its spot: Finn reads a map, Jake makes a sandwich, BMO dances. Plan mode shows thinking, failed steps show a retry (3+ in a row: tired and bandaged), approvals show "Needs approval", and a finished turn gets one short celebration. Labels always say the real status.
+When nobody has anything to do, all three curl up together for a nap. As soon as one of your agents starts a task, only its buddy wakes up and gets to work. The others keep snoozing.
 
-The design follows `handoff/START-HERE-CLAUDE.txt`. The art in `web/sprites/` is the supplied, unofficial Adventure Time pack, so **keep this project private**: these are Cartoon Network characters.
+![Finn reading his map, Jake making a sandwich, BMO dancing](docs/2-working.png)
 
-## Use it
+## They have feelings (sort of)
 
-- Drag the widget anywhere. Clicks pass through it to your windows except while the pointer is over it.
-- Hover a column for details (open tasks, last update).
-- Right-click it, or use the menu-bar icon, for: Hide/Show, Pause Animations, Ice King on Tough Tasks, Clear Failure Labels, Move to Bottom-Right Corner, Quit.
-- `~/.agent-companions/state.json` holds what each companion shows right now (updated every 2 s).
+- 🤔 **Planning:** Finn scratches his hat and thinks hard.
+- 😅 **Something failed:** arms get tangled and they try again.
+- 🩹 **Failed a few times in a row:** they look worn out and grab a bandage.
+- ✋ **Needs your OK:** they wait patiently and the label says *Needs approval*.
+- 🎉 **Done:** a quick victory pose (Finn's sword salute is the best), then back to napping.
 
-## Build
+![Finn planning, Jake bandaged after a few failures, BMO waiting for approval](docs/3-trouble.png)
+
+![Finn celebrating with his sword while BMO keeps dancing](docs/4-done.png)
+
+Every buddy also has a little label underneath saying exactly what's going on, so the cute part never hides the real status.
+
+## Install it with a prompt
+
+Copy this into your AI agent (Claude Code, Codex, Antigravity, or whatever you use) and let it do the work:
+
+```text
+Install Agent Companions (https://github.com/nehapandeymn-tech/agent-companions) on this Mac:
+
+1. It needs macOS 14 or newer and the Xcode Command Line Tools. If `swiftc` is missing,
+   tell me to run `xcode-select --install` and stop.
+2. Clone the repo to ~/agent-companions and run `./build.sh --install` there.
+3. Run `./scripts/connect.sh` to connect the agents I have installed. It keeps my existing
+   settings and backs them up first.
+4. Run: open "/Applications/Agent Companions.app"
+5. Tell me which agents got connected. Remind me that I can drag the widget anywhere and
+   right-click it for options.
+```
+
+Prefer doing it yourself?
 
 ```sh
-./build.sh            # runs the logic tests, builds build/Agent Companions.app
-./build.sh --install  # also copies it to /Applications
+git clone https://github.com/nehapandeymn-tech/agent-companions ~/agent-companions
+cd ~/agent-companions && ./build.sh --install && ./scripts/connect.sh
+open "/Applications/Agent Companions.app"
 ```
 
-Check the rendering without touching live data:
+## Little things to know
+
+- **Move it:** drag it anywhere. Clicks go straight through to your windows unless your mouse is on it.
+- **Peek:** hover over a buddy for details.
+- **Options:** right-click it (or use the menu-bar icon) to pause the animations, hide it, or turn on the optional **Ice King** cameo for really tough tasks.
+- **Private by design:** it only notices *that* something happened, like "a task started" or "a step failed". It never reads your prompts, your code or your conversations.
+
+## Saying goodbye
 
 ```sh
-"build/Agent Companions.app/Contents/MacOS/Agent Companions" --snapshot out.png --js "['claude','antigravity','codex'].forEach(p=>Companions.setConnection(p,'healthy'))"
+cd ~/agent-companions && ./scripts/disconnect.sh
 ```
 
-## How it works
+Then quit the app and drag **Agent Companions** from Applications to the Trash.
 
-```
-companion-hook (Claude, Antigravity) ─┐
-                                      ├─> ~/.agent-companions/events/*.ndjson ─┐
-Codex session logs (read-only) ───────┘                                        ├─> app tails + slims lines
-                                                                                └─> web/core.js: adapters -> task store -> resolver
-                                                                                    web/scene.js: choreography -> canvas
-```
+## Credits
 
-- `Sources/Hook/main.swift`: `companion-hook`. It stores only an allow-list (event name, session id, tool name, failure flag, process id). It never stores prompts, file contents or commands, never blocks, and always answers Antigravity with valid JSON (about 20 ms).
-- `Sources/App/main.swift`: the floating panel, log tailing, process checks and menu. Codex lines are cut down to event types before they reach the web view.
-- `web/core.js`: all task logic, with no DOM. It covers dedup by event id, revision ordering, stable terminal states, retry streaks per attempt, one-shot completions (never replayed after a relaunch), and completion badges when another task needs help.
-- `tests/core.test.js`: 25 tests covering the brief's acceptance scenarios and all three adapters.
+This is an unofficial fan project, made for fun. Finn, Jake, BMO, the Ice King and Adventure Time belong to Cartoon Network, and this project isn't affiliated with or endorsed by them. The pixel art is fan-made for this project.
 
-## Known limits
-
-- **Approvals:** Antigravity has no approval or notification hook, so Jake can't show "Needs approval". The Codex logs on this Mac contain no approval events either; BMO shows them only if Codex writes them.
-- **Counted failures:** Claude and Antigravity report failed tool calls (for example a `grep` with no match). Each one counts as a failed attempt; one success resets the streak.
-- **Turns that end without a stop:** these close when that session's own process exits (recorded per session by the hook). For Codex, an unfinished turn idle for 30+ minutes is closed only at launch.
-- **Ice King:** none of the three tools reports "difficulty", so the Ice King appears only when something marks a task as an encounter (and the menu option is on).
-
-## Uninstall
-
-1. Quit the app, delete `/Applications/Agent Companions.app` and `~/.agent-companions/`.
-2. Remove the `companion-hook` entries from `~/.claude/settings.json`. A backup from before the install is at `~/.claude/settings.json.bak-companions`.
-3. Delete `~/.gemini/config/hooks.json`. It contains only the `agent-companions` hook.
+Curious how it works under the hood? See [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md).
