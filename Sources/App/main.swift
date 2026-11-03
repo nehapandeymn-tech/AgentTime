@@ -157,7 +157,8 @@ final class Controller: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
         if snapshotPath != nil { panel.orderFrontRegardless(); web.load(URLRequest(url: URL(string: "companions://app/index.html")!)); return }
 
         status = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        status.button?.image = NSImage(systemSymbolName: "figure.2.and.child.holdinghands", accessibilityDescription: "Agent Companions")
+        status.button?.image = finnFace(webRoot: webRoot)
+            ?? NSImage(systemSymbolName: "figure.2.and.child.holdinghands", accessibilityDescription: "Agent Companions")
         let menu = NSMenu(); menu.delegate = self; status.menu = menu
 
         if !UserDefaults.standard.bool(forKey: "hidden") { panel.orderFrontRegardless() }
@@ -180,6 +181,23 @@ final class Controller: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
             self?.js("Companions.setReducedMotion(\(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion))")
         }
+    }
+
+    /// Menu-bar icon: Finn's face, cut from his front-facing sprite (hat, ears and face; no shirt).
+    func finnFace(webRoot: URL) -> NSImage? {
+        guard let src = CGImageSourceCreateWithURL(webRoot.appendingPathComponent("sprites/finn-core.png") as CFURL, nil),
+              let sheet = CGImageSourceCreateImageAtIndex(src, 0, nil),
+              let face = sheet.cropping(to: CGRect(x: 40, y: 30, width: 117, height: 65)) else { return nil }
+        let h: CGFloat = 16, w = (h * CGFloat(face.width) / CGFloat(face.height)).rounded()
+        let img = NSImage(size: NSSize(width: w, height: h), flipped: false) { r in
+            guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
+            ctx.interpolationQuality = .high
+            ctx.draw(face, in: r)
+            return true
+        }
+        img.isTemplate = false
+        img.accessibilityDescription = "Agent Companions"
+        return img
     }
 
     // JS -> native
