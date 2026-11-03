@@ -22,14 +22,14 @@ The design follows `handoff/START-HERE-CLAUDE.txt`. The art in `web/sprites/` is
 ## Build
 
 ```sh
-./build.sh            # runs the logic tests, builds build/Agent Companions.app
+./build.sh            # runs the logic tests, builds build/AgentTime.app
 ./build.sh --install  # also copies it to /Applications
 ```
 
 Check the rendering without touching live data:
 
 ```sh
-"build/Agent Companions.app/Contents/MacOS/Agent Companions" --snapshot out.png --js "['claude','antigravity','codex'].forEach(p=>Companions.setConnection(p,'healthy'))"
+"build/AgentTime.app/Contents/MacOS/AgentTime" --snapshot out.png --js "['claude','antigravity','codex'].forEach(p=>Companions.setConnection(p,'healthy'))"
 ```
 
 ## How it works
@@ -58,4 +58,4 @@ Codex session logs (read-only) ───────┘                         
 ## Uninstall
 
 1. Run `./scripts/disconnect.sh`. It removes only this app's hooks; backups from install time are kept next to each file as `*.bak-companions`.
-2. Quit the app, then delete `/Applications/Agent Companions.app` and `~/.agent-companions/`.
+2. Quit the app, then delete `/Applications/AgentTime.app` and `~/.agent-companions/`.

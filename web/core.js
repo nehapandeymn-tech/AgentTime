@@ -1,4 +1,4 @@
-// Agent Companions core: provider adapters -> normalized events -> task store -> per-provider resolver.
+// AgentTime core: provider adapters -> normalized events -> task store -> per-provider resolver.
 // Pure logic, no DOM. Loads in the browser as window.CompanionCore and in Node via require() for tests.
 (function (root, factory) {
   const api = factory();

@@ -1,4 +1,4 @@
-// Agent Companions: a floating, see-through corner widget where Finn (Claude), Jake (Antigravity) and BMO (Codex)
+// AgentTime: a floating, see-through corner widget where Finn (Claude), Jake (Antigravity) and BMO (Codex)
 // act out what each agent is doing. This shell only moves bytes: it tails event logs, checks which tools are
 // running, and hosts the web scene. All task logic lives in web/core.js.
 import Cocoa
@@ -158,7 +158,7 @@ final class Controller: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
 
         status = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         status.button?.image = finnFace(webRoot: webRoot)
-            ?? NSImage(systemSymbolName: "figure.2.and.child.holdinghands", accessibilityDescription: "Agent Companions")
+            ?? NSImage(systemSymbolName: "figure.2.and.child.holdinghands", accessibilityDescription: "AgentTime")
         let menu = NSMenu(); menu.delegate = self; status.menu = menu
 
         if !UserDefaults.standard.bool(forKey: "hidden") { panel.orderFrontRegardless() }
@@ -196,7 +196,7 @@ final class Controller: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
             return true
         }
         img.isTemplate = false
-        img.accessibilityDescription = "Agent Companions"
+        img.accessibilityDescription = "AgentTime"
         return img
     }
 
@@ -348,7 +348,7 @@ final class Controller: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
-        let head = NSMenuItem(title: "Agent Companions", action: nil, keyEquivalent: ""); head.isEnabled = false
+        let head = NSMenuItem(title: "AgentTime", action: nil, keyEquivalent: ""); head.isEnabled = false
         menu.addItem(head)
         for (name, ok, how) in [("Claude · Finn", hooksInstalled(claudeSettings), "hooks"),
                                  ("Antigravity · Jake", hooksInstalled(agyHooks), "hooks"),
@@ -363,7 +363,7 @@ final class Controller: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
         menu.addItem(item("Clear Failure Labels", #selector(clearFailures)))
         menu.addItem(item("Move to Bottom-Right Corner", #selector(resetPosition)))
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Quit Agent Companions", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "Quit AgentTime", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
     func popMenu(_ e: NSEvent) {
         let menu = NSMenu(); menu.delegate = self; menuNeedsUpdate(menu)

@@ -1,4 +1,4 @@
-# Agent Companions 🗡️🐶🎮
+# AgentTime 🗡️🐶🎮
 
 **Your AI agents, but make it Adventure Time.**
 
@@ -37,24 +37,24 @@ Every buddy also has a little label underneath saying exactly what's going on, s
 Copy this into your AI agent (Claude Code, Codex, Antigravity, or whatever you use) and let it do the work:
 
 ```text
-Install Agent Companions (https://github.com/nehapandeymn-tech/agent-companions) on this Mac:
+Install AgentTime (https://github.com/nehapandeymn-tech/AgentTime) on this Mac:
 
-1. It needs macOS 14 or newer and the Xcode Command Line Tools. If `swiftc` is missing,
-   tell me to run `xcode-select --install` and stop.
-2. Clone the repo to ~/agent-companions and run `./build.sh --install` there.
-3. Run `./scripts/connect.sh` to connect the agents I have installed. It keeps my existing
-   settings and backs them up first.
-4. Run: open "/Applications/Agent Companions.app"
-5. Tell me which agents got connected. Remind me that I can drag the widget anywhere and
-   right-click it for options.
+1. Clone it to ~/AgentTime. It needs the Xcode Command Line Tools; if swiftc is
+   missing, tell me to run xcode-select --install and stop.
+2. In ~/AgentTime run ./build.sh --install (builds, tests, copies to /Applications).
+3. Run ./scripts/connect.sh (hooks up Claude Code and Antigravity if I have them;
+   Codex needs nothing). It keeps my existing settings and backs them up first.
+4. Run: open /Applications/AgentTime.app
+5. Tell me Finn (Claude), Jake (Antigravity) and BMO (Codex) now live in the
+   bottom-right corner: drag them anywhere, right-click for options.
 ```
 
 Prefer doing it yourself?
 
 ```sh
-git clone https://github.com/nehapandeymn-tech/agent-companions ~/agent-companions
-cd ~/agent-companions && ./build.sh --install && ./scripts/connect.sh
-open "/Applications/Agent Companions.app"
+git clone https://github.com/nehapandeymn-tech/AgentTime ~/AgentTime
+cd ~/AgentTime && ./build.sh --install && ./scripts/connect.sh
+open /Applications/AgentTime.app
 ```
 
 ## Little things to know
@@ -67,10 +67,10 @@ open "/Applications/Agent Companions.app"
 ## Saying goodbye
 
 ```sh
-cd ~/agent-companions && ./scripts/disconnect.sh
+cd ~/AgentTime && ./scripts/disconnect.sh
 ```
 
-Then quit the app and drag **Agent Companions** from Applications to the Trash.
+Then quit the app and drag **AgentTime** from Applications to the Trash.
 
 ## Credits
 

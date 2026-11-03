@@ -1,4 +1,4 @@
-// Agent Companions scene: choreography + canvas renderer. Reads the store, never writes task truth.
+// AgentTime scene: choreography + canvas renderer. Reads the store, never writes task truth.
 (function () {
   'use strict';
   const C = window.CompanionCore;
