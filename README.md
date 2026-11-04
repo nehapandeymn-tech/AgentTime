@@ -32,15 +32,15 @@ When nobody has anything to do, all three curl up together for a nap. As soon as
 
 Every buddy also has a little label underneath saying exactly what's going on, so the cute part never hides the real status.
 
-## Health bars ❤️
+## Health bars
 
 Under each buddy there's a little pixel health bar showing how many tokens are left in that agent's current conversation (its context window). It drains as the chat gets longer:
 
 - 🟩 **Green:** plenty of room.
 - 🟨 **Yellow:** under half left.
-- 🟥 **Red:** under a fifth left. When it's almost empty, the heart blinks, which is a good moment to wrap up or start a fresh chat.
+- 🟥 **Red:** under a fifth left. When it's almost empty, the bar blinks, which is a good moment to wrap up or start a fresh chat.
 
-The number next to the bar is the tokens left, like `104k`. A grey heart and a dash mean that agent hasn't been used in the last day.
+The number next to the bar is the tokens left, like `104k`. An empty bar and a dash mean that agent hasn't been used in the last day.
 
 ## Install it with a prompt
 

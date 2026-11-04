@@ -222,7 +222,6 @@
     '8': '111101111101111', '9': '111101111001111', 'k': '100101110101101', 'M': '101111111101101',
     '.': '000000000000010', '-': '000000111000000',
   };
-  const HEART = ['0110110', '1111111', '1111111', '0111110', '0011100', '0001000'];
 
   // Bar graphics are drawn on a coarse grid (U logical px per pixel) so they match the sprites' chunky pixels.
   let gx = 0, gy = 0;
@@ -260,24 +259,20 @@
     const BH = 7;                                   // bar height: 1-pixel frame around 5 rows
     const barW = SEGMENTS * SEG_W + 3;              // frame, 1 gap, segments (2 wide + 1 gap), frame
     const label = has ? shortCount(left) : '-';
-    const total = 7 + 2 + barW + 2 + (label.length * 4 - 1);
+    const total = barW + 2 + (label.length * 4 - 1);
     gx = Math.round(x - total * U / 2); gy = BAR_Y;
     let cx = 0;
 
-    // Heart: red when there's data, blinking once a session is nearly out of room.
-    const low = has && frac <= 0.1;
-    const blinkOff = low && !reducedMotion && !paused && Math.floor(now / 400) % 2 === 1;
-    const heartColor = !has ? 'rgba(255,255,255,0.22)' : blinkOff ? '#7a2630' : '#ff4d6a';
-    HEART.forEach((row, ry) => { for (let rx = 0; rx < 7; rx++) if (row[rx] === '1') px(cx + rx, ry + 0.5, 1, 1, heartColor); });
-    if (has && !blinkOff) px(cx + 1, 1.5, 1, 1, '#ffd0d8');          // a one-pixel glint
-    cx += 7 + 2;
+    // Nearly out of room: the lit segments blink.
+    const blinkOff = has && frac <= 0.1 && !reducedMotion && !paused && Math.floor(now / 400) % 2 === 1;
+
 
     // Frame, then segments: lit ones get a highlight row and a shadow row, unlit ones stay dark.
     const edge = 'rgba(255,255,255,0.4)';
     px(cx, 0, barW, BH, '#0b0d14');
     px(cx + 1, 0, barW - 2, 1, edge); px(cx + 1, BH - 1, barW - 2, 1, edge);
     px(cx, 1, 1, BH - 2, edge); px(cx + barW - 1, 1, 1, BH - 2, edge);
-    const lit = has && left > 0 ? Math.max(1, Math.ceil(frac * SEGMENTS)) : 0;
+    const lit = has && left > 0 && !blinkOff ? Math.max(1, Math.ceil(frac * SEGMENTS)) : 0;
     for (let i = 0; i < SEGMENTS; i++) {
       const sx = cx + 2 + i * SEG_W;
       if (i < lit) {
