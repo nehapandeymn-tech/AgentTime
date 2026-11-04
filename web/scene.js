@@ -6,7 +6,7 @@
 
   const W = 380, H = 186, GROUND = 104;
   const BAR_Y = GROUND + 6, ROW_H = 13, U = 1.5;   // health bars sit right under the characters; U = one bar 'pixel'
-  const NAME_Y = GROUND + 46;                       // room for two account rows above the names
+  let NAME_Y = GROUND + 33, CARD_H = H;             // set per frame: names sit below however many account rows there are
   const HEIGHT = { finn: 58, jake: 58, bmo: 46, group: 60, 'ice-king': 66 };
   const ATLAS_FILES = ['finn-core', 'jake-core', 'bmo-core', 'finn-context', 'jake-context', 'bmo-context', 'ice-king', 'group', 'death'];
   const DEATH_STATES = new Set(['die', 'grave', 'poof']);
@@ -186,10 +186,13 @@
   function draw(now, res) {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const rows = Math.max(1, ...P.map(p => (limits[p] || []).length));
+    NAME_Y = BAR_Y + rows * ROW_H + 14;
+    CARD_H = Math.min(H, NAME_Y + 36);
     ctx.imageSmoothingEnabled = false;
 
     // Glass card so labels read over any wallpaper or window.
-    roundRect(0.5 * dpr, 0.5 * dpr, (W - 1) * dpr, (H - 1) * dpr, 14 * dpr);
+    roundRect(0.5 * dpr, 0.5 * dpr, (W - 1) * dpr, (CARD_H - 1) * dpr, 14 * dpr);
     ctx.fillStyle = 'rgba(17, 20, 30, 0.66)'; ctx.fill();
     ctx.lineWidth = dpr; ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,0.08)';
