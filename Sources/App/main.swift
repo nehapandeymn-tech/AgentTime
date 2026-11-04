@@ -11,7 +11,7 @@ let claudeSettings = home.appendingPathComponent(".claude/settings.json")
 let agyHooks = home.appendingPathComponent(".gemini/config/hooks.json")
 let replayWindow: TimeInterval = 2 * 3600       // on launch, rebuild state from the last 2 hours (no celebrations)
 let codexOrphanAge: TimeInterval = 30 * 60      // on launch only: an unfinished Codex turn idle this long is stale
-let widgetSize = NSSize(width: 380, height: 156)
+let widgetSize = NSSize(width: 380, height: 184)
 
 // MARK: - Serving the web scene from the bundle (custom scheme, so fetch() and images just work)
 
@@ -172,6 +172,7 @@ final class Controller: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
         Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in self?.trackMouse() }
         Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] _ in self?.pump(initial: false) }
         Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in self?.checkTools() }
+        Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in self?.updateMeters() }
         // What each companion shows right now, for debugging and other tools (status lines etc.).
         Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
             guard let self, self.ready else { return }
@@ -213,6 +214,29 @@ final class Controller: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
         js("Companions.setReducedMotion(\(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion))")
         pump(initial: true)     // rebuild recent history first (no celebrations)...
         checkTools()            // ...then close whatever belongs to tools that aren't running
+        updateMeters()
+    }
+
+    // MARK: Token meters (the health bars along the bottom)
+
+    var meters: [String: Meter] = [:]
+    var metering = false
+    func updateMeters() {
+        guard ready, !metering else { return }
+        metering = true
+        let codex = codexFiles()
+        DispatchQueue.global(qos: .utility).async {
+            var m: [String: Meter] = [:]
+            m["claude"] = claudeMeter()
+            m["codex"] = codexMeter(files: codex)
+            m["antigravity"] = antigravityMeter()
+            DispatchQueue.main.async {
+                self.metering = false
+                guard m != self.meters, let d = try? JSONEncoder().encode(m), let json = String(data: d, encoding: .utf8) else { return }
+                self.meters = m
+                self.js("Companions.setTokens(\(json))")
+            }
+        }
     }
 
     func js(_ s: String) { if ready { web.evaluateJavaScript(s, completionHandler: nil) } }

@@ -32,6 +32,16 @@ When nobody has anything to do, all three curl up together for a nap. As soon as
 
 Every buddy also has a little label underneath saying exactly what's going on, so the cute part never hides the real status.
 
+## Health bars ❤️
+
+Under each buddy there's a little pixel health bar showing how many tokens are left in that agent's current conversation (its context window). It drains as the chat gets longer:
+
+- 🟩 **Green:** plenty of room.
+- 🟨 **Yellow:** under half left.
+- 🟥 **Red:** under a fifth left. When it's almost empty, the heart blinks, which is a good moment to wrap up or start a fresh chat.
+
+The number next to the bar is the tokens left, like `104k`. A grey heart and a dash mean that agent hasn't been used in the last day.
+
 ## Install it with a prompt
 
 Copy this into your AI agent (Claude Code, Codex, Antigravity, or whatever you use) and let it do the work:
@@ -62,7 +72,7 @@ open /Applications/AgentTime.app
 - **It never gets in your way:** when your mouse goes over the widget, it fades almost invisible and clicks go straight through to whatever is behind it.
 - **Move it:** grab the little bar along the top and drag it anywhere.
 - **Options:** right-click the top bar (or use the menu-bar icon) to pause the animations, hide it, or turn on the optional **Ice King** cameo for really tough tasks.
-- **Private by design:** it only notices *that* something happened, like "a task started" or "a step failed". It never reads your prompts, your code or your conversations.
+- **Private by design:** it only notices *that* something happened, like "a task started" or "a step failed", plus the token counts for the health bars. It never stores or shows your prompts, your code or your conversations.
 
 ## Saying goodbye
 

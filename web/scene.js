@@ -4,7 +4,7 @@
   const C = window.CompanionCore;
   const P = C.PROVIDERS;
 
-  const W = 380, H = 156, GROUND = 104;
+  const W = 380, H = 184, GROUND = 104, BAR_Y = GROUND + 58, U = 2;   // U: one bar 'pixel' in logical px
   const HEIGHT = { finn: 58, jake: 58, bmo: 46, group: 60, 'ice-king': 66 };
   const ATLAS_FILES = ['finn-core', 'jake-core', 'bmo-core', 'finn-context', 'jake-context', 'bmo-context', 'ice-king', 'group'];
   const CONTEXT_STATES = new Set(['chill', 'thinking', 'retry', 'strained', 'encounter', 'recover']);
@@ -26,6 +26,7 @@
   const images = {};
   let reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let paused = false, visible = true, hover = null, rafId = 0, handleHot = false;
+  let tokens = {};                          // provider -> {used, window}: context left in its latest session
   let iceKing = null;                       // {target, mode:'cast'|'resolved', start}
 
   const canvas = document.getElementById('stage');
@@ -202,12 +203,93 @@
       if (r.summary) text(r.summary, x, GROUND + 50, { size: 9.5, max: 120, color: 'rgba(255,255,255,0.55)' });
     }
 
+    for (const p of P) drawTokenBar(p, COL_X[p], now);
+
     // Grab handle: the only part of the widget that takes the mouse (drag it, right-click it).
     roundRect((W / 2 - 22) * dpr, 7 * dpr, 44 * dpr, 5 * dpr, 2.5 * dpr);
     ctx.fillStyle = handleHot ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.25)'; ctx.fill();
 
     if (paused) text('Paused', W - 14, 18, { align: 'right', size: 10, color: 'rgba(255,255,255,0.6)' });
   }
+
+
+  // ------------------------------------------------------------ token health bars (pixel style)
+
+  // 3×5 pixel font for the bar labels: digits plus k, M and a dash.
+  const GLYPH = {
+    '0': '111101101101111', '1': '010110010010111', '2': '111001111100111', '3': '111001111001111',
+    '4': '101101111001001', '5': '111100111001111', '6': '111100111101111', '7': '111001001010010',
+    '8': '111101111101111', '9': '111101111001111', 'k': '100101110101101', 'M': '101111111101101',
+    '.': '000000000000010', '-': '000000111000000',
+  };
+  const HEART = ['0110110', '1111111', '1111111', '0111110', '0011100', '0001000'];
+
+  // Bar graphics are drawn on a coarse grid (U logical px per pixel) so they match the sprites' chunky pixels.
+  let gx = 0, gy = 0;
+  function px(x, y, w, h, color) { ctx.fillStyle = color; ctx.fillRect((gx + x * U) * dpr, (gy + y * U) * dpr, w * U * dpr, h * U * dpr); }
+
+  function pixelText(str, x, y, color) {          // left-aligned at x; returns width in px
+    let cx = x;
+    for (const ch of str) {
+      const g = GLYPH[ch];
+      if (g) for (let i = 0; i < 15; i++) if (g[i] === '1') px(cx + (i % 3), y + Math.floor(i / 3), 1, 1, color);
+      cx += 4;
+    }
+    return cx - x - 1;
+  }
+
+  function shortCount(n) {
+    if (n >= 999500) return (n / 1e6).toFixed(n >= 9.95e6 ? 0 : 1).replace(/\.0$/, '') + 'M';
+    if (n >= 1000) return Math.round(n / 1000) + 'k';
+    return String(Math.max(0, Math.round(n)));
+  }
+
+  const SEGMENTS = 8, SEG_W = 3;
+  function barColors(frac) {
+    if (frac > 0.5) return ['#4cd964', '#a6f5b0'];
+    if (frac > 0.2) return ['#ffcc33', '#ffe9a0'];
+    return ['#ff4d4d', '#ffb0a8'];
+  }
+
+  function drawTokenBar(p, x, now) {
+    const m = tokens[p];
+    const has = !!(m && m.window > 0);
+    const left = has ? Math.max(0, m.window - m.used) : 0;
+    const frac = has ? left / m.window : 0;
+    const [fill, shine] = barColors(frac);
+    const BH = 7;                                   // bar height: 1-pixel frame around 5 rows
+    const barW = SEGMENTS * SEG_W + 3;              // frame, 1 gap, segments (2 wide + 1 gap), frame
+    const label = has ? shortCount(left) : '-';
+    const total = 7 + 2 + barW + 2 + (label.length * 4 - 1);
+    gx = Math.round(x - total * U / 2); gy = BAR_Y;
+    let cx = 0;
+
+    // Heart: red when there's data, blinking once a session is nearly out of room.
+    const low = has && frac <= 0.1;
+    const blinkOff = low && !reducedMotion && !paused && Math.floor(now / 400) % 2 === 1;
+    const heartColor = !has ? 'rgba(255,255,255,0.22)' : blinkOff ? '#7a2630' : '#ff4d6a';
+    HEART.forEach((row, ry) => { for (let rx = 0; rx < 7; rx++) if (row[rx] === '1') px(cx + rx, ry + 0.5, 1, 1, heartColor); });
+    if (has && !blinkOff) px(cx + 1, 1.5, 1, 1, '#ffd0d8');          // a one-pixel glint
+    cx += 7 + 2;
+
+    // Frame, then segments: lit ones get a highlight row and a shadow row, unlit ones stay dark.
+    const edge = 'rgba(255,255,255,0.4)';
+    px(cx, 0, barW, BH, '#0b0d14');
+    px(cx + 1, 0, barW - 2, 1, edge); px(cx + 1, BH - 1, barW - 2, 1, edge);
+    px(cx, 1, 1, BH - 2, edge); px(cx + barW - 1, 1, 1, BH - 2, edge);
+    const lit = has && left > 0 ? Math.max(1, Math.ceil(frac * SEGMENTS)) : 0;
+    for (let i = 0; i < SEGMENTS; i++) {
+      const sx = cx + 2 + i * SEG_W;
+      if (i < lit) {
+        px(sx, 1, SEG_W - 1, BH - 2, fill);
+        px(sx, 1, SEG_W - 1, 1, shine);
+        px(sx, BH - 2, SEG_W - 1, 1, 'rgba(0,0,0,0.28)');
+      } else px(sx, 1, SEG_W - 1, BH - 2, 'rgba(255,255,255,0.08)');
+    }
+    cx += barW + 2;
+    pixelText(label, cx, 1, has ? fill : 'rgba(255,255,255,0.35)');
+  }
+
 
   // ------------------------------------------------------------ loop
 
@@ -239,7 +321,8 @@
     setEncounters: v => { cfg.encounters = v; wake(); },
     hover: (x, y) => { hover = x == null ? null : { x, y }; wake(); },
     setHandle: on => { handleHot = on; wake(); },
-    snapshotState: () => P.map(p => { const r = store.resolve(p); return { provider: p, state: r.state, label: r.label, x: chars[p].x, seq: chars[p].seq }; }),
+    setTokens: t => { tokens = t || {}; wake(); },
+    snapshotState: () => P.map(p => { const r = store.resolve(p); return { provider: p, state: r.state, label: r.label, x: chars[p].x, seq: chars[p].seq, tokens: tokens[p] || null }; }),
     _store: store,
   };
 

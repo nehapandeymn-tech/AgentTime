@@ -18,6 +18,20 @@ The design follows `handoff/START-HERE-CLAUDE.txt`. The art in `web/sprites/` is
 - Right-click it, or use the menu-bar icon, for: Hide/Show, Pause Animations, Ice King on Tough Tasks, Clear Failure Labels, Move to Bottom-Right Corner, Quit.
 - `~/.agent-companions/state.json` holds what each companion shows right now (updated every 2 s).
 
+## Health bars (tokens left)
+
+Each column ends with a pixel health bar: the context window left in that agent's most recent session (last 24 h), refreshed every 4 s by `Sources/App/Tokens.swift`. Only numbers are read; nothing else from these files is kept.
+
+| Agent | Where the numbers come from | Window size |
+|---|---|---|
+| Claude Code | Newest transcript in `~/.claude/projects/*/*.jsonl`: the last main-thread assistant message's `usage` (input + cache read + cache write + output) | Not logged: 200k, or 1M once the session has gone past 200k |
+| Codex | Newest session log: the last `token_count` event's `last_token_usage.total_tokens` | `model_context_window` from the same event |
+| Antigravity | Newest `~/.gemini/antigravity-cli/conversations/*.db` (opened read-only): the latest `gen_metadata` row, protobuf fields 1›9›10›1 (prompt tokens) and 1›9›10›4 (window) | From the same record |
+
+Colours: green above 50% left, yellow above 20%, red below; the heart blinks at 10% or less. Antigravity's format is undocumented, so if it changes, Jake's bar shows a grey heart and a dash instead of a wrong number.
+
+To preview the bars: add `Companions.setTokens({claude:{used:79000,window:200000}})` to the `--js` snapshot script.
+
 ## Build
 
 ```sh
@@ -43,7 +57,8 @@ Codex session logs (read-only) ───────┘                         
 
 - `scripts/connect.sh` / `scripts/disconnect.sh`: add or remove the hooks, keeping all other settings.
 - `Sources/Hook/main.swift`: `companion-hook`. It stores only an allow-list (event name, session id, tool name, failure flag, process id). It never stores prompts, file contents or commands, never blocks, and always answers Antigravity with valid JSON (about 20 ms).
-- `Sources/App/main.swift`: the floating panel, log tailing, process checks and menu. Codex lines are cut down to event types before they reach the web view.
+- `Sources/App/main.swift`: the floating panel, log tailing, process checks and menu.
+- `Sources/App/Tokens.swift`: the read-only token meters behind the health bars. Codex lines are cut down to event types before they reach the web view.
 - `web/core.js`: all task logic, with no DOM. It covers dedup by event id, revision ordering, stable terminal states, retry streaks per attempt, one-shot completions (never replayed after a relaunch), and completion badges when another task needs help.
 - `tests/core.test.js`: 25 tests covering the brief's acceptance scenarios and all three adapters.
 
