@@ -1,4 +1,4 @@
-# AgentTime 🗡️🐶🎮
+# AgentTime 
 
 **Your AI agents, but make it Adventure Time.**
 
