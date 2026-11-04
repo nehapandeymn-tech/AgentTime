@@ -28,6 +28,7 @@ Right under each character: one pixel bar per account, showing how much of its *
 | Antigravity | Its status line (`~/.gemini/antigravity-cli/settings.json`) runs `companion-hook statusline antigravity`, which saves `quota` (`gemini-5h`, `gemini-weekly`, `3p-5h`, `3p-weekly`: `remaining_fraction`, `reset_time`). The bar shows the group of the model in use; Jake is only out when both groups are. |
 | Codex | The newest `rate_limits` in its session logs (`primary` / `secondary`: `used_percent`, `window_minutes`, `resets_at`, plus `rate_limit_reached_type`). |
 
+- Several open sessions on one account each report the numbers from their own last request, so the hook keeps the lowest "left" seen for the same bucket and reset time: within a limit window the bar only goes down. Names and order can be set in `~/.agent-companions/accounts.json`.
 - A limit whose reset time has passed counts as full again, so a tombstone lifts on time even if the agent hasn't run since.
 - **Tombstone:** an agent is out when every account with numbers is at 0%. Its character plays the "out of tokens" sequence (`web/sprites/death.png`, cut from `Resources/death-sheet.png` with `swift Tools/cutdeath.swift`) and a tombstone stays over its bar with "Out of tokens · back in …". An account with no numbers yet (never used) shows a dash and doesn't count either way.
 - **Status lines:** `connect.sh` keeps an existing status line working: the hook saves the numbers, then runs your old command and shows its output. `disconnect.sh` puts it back.

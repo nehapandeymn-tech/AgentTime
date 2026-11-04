@@ -68,6 +68,18 @@ func claudeAccounts() -> [(dir: String, name: String)] {
             else { found.append((dir, String(line[n]))) }
         }
     }
+    // Your own names and order win: ~/.agent-companions/accounts.json
+    //   {"claude": [{"dir": "~/.claude", "name": "work"}, {"dir": "~/.personal", "name": "personal"}]}
+    if let o = readJSON(home.appendingPathComponent(".agent-companions/accounts.json")),
+       let list = o["claude"] as? [[String: Any]] {
+        var ordered: [(String, String?)] = []
+        for e in list {
+            guard let d = e["dir"] as? String else { continue }
+            let dir = URL(fileURLWithPath: (d as NSString).expandingTildeInPath).standardizedFileURL.path
+            ordered.append((dir, e["name"] as? String ?? found.first(where: { $0.0 == dir })?.1))
+        }
+        found = ordered + found.filter { f in !ordered.contains(where: { $0.0 == f.0 }) }
+    }
     return found.filter { FileManager.default.fileExists(atPath: $0.0) }
         .map { ($0.0, $0.1 ?? (URL(fileURLWithPath: $0.0).lastPathComponent.trimmingCharacters(in: CharacterSet(charactersIn: ".")))) }
 }

@@ -37,7 +37,11 @@ Every buddy also has a little label underneath saying exactly what's going on, s
 Right under each buddy is a little pixel health bar showing how much of that agent's **usage limit** is left. It counts down as you use it, and only fills back up when the limit resets. The bar always shows the tighter of the 5-hour and weekly limits, as a percentage, because that's how Claude, Codex and Antigravity themselves report it.
 
 - 🟩 **Green:** plenty left. 🟨 **Yellow:** under half. 🟥 **Red:** under a fifth. Nearly empty, it blinks.
-- **Two accounts?** If you use two Claude accounts (for example a second one through a `CLAUDE_CONFIG_DIR` alias), Finn gets one bar per account, labelled with the alias name.
+- **Two accounts?** If you use two Claude accounts (for example a second one through a `CLAUDE_CONFIG_DIR` alias), Finn gets one bar per account, labelled with the alias name. To rename or reorder them (say, "work" on top), create `~/.agent-companions/accounts.json`:
+
+  ```json
+  { "claude": [ { "dir": "~/.claude", "name": "work" }, { "dir": "~/.personal", "name": "personal" } ] }
+  ```
 - **Out of tokens:** when every account an agent has is used up, its buddy gets tired, collapses, goes *poof*… and a tombstone appears in its place, with a label saying when the limit comes back. As long as one account still has some left, the buddy stays alive. When the limit resets, they pop right back.
 
 ![Finn alive on his second account, BMO's tombstone after Codex ran out](docs/5-out-of-tokens.png)

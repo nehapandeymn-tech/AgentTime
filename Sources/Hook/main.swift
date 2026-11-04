@@ -57,8 +57,24 @@ func statusLine(_ tool: String, chained: String?) {
         let dir = URL(fileURLWithPath: home + "/.agent-companions/limits")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let safe = account.map { $0.isLetter || $0.isNumber ? $0 : "_" }
+        let file = dir.appendingPathComponent("\(tool)-\(String(safe)).json")
+        // Several open sessions on one account each report the numbers from their own last request, so an
+        // idle window can report an older, higher figure. Within one limit window usage only goes up:
+        // keep the lowest "left" seen for the same bucket and reset time.
+        if let old = (try? Data(contentsOf: file)).flatMap({ try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }),
+           let oldBuckets = old["buckets"] as? [[String: Any]] {
+            rec["buckets"] = buckets.map { b -> [String: Any] in
+                var b = b
+                guard let prev = oldBuckets.first(where: { $0["name"] as? String == b["name"] as? String }),
+                      let pl = (prev["left"] as? NSNumber)?.doubleValue, let nl = b["left"] as? Double,
+                      let pr = (prev["resets_at"] as? NSNumber)?.doubleValue, let nr = b["resets_at"] as? Double,
+                      abs(pr - nr) < 120 else { return b }
+                b["left"] = min(pl, nl)
+                return b
+            }
+        }
         if let d = try? JSONSerialization.data(withJSONObject: rec, options: [.sortedKeys]) {
-            try? d.write(to: dir.appendingPathComponent("\(tool)-\(String(safe)).json"), options: .atomic)
+            try? d.write(to: file, options: .atomic)
         }
     }
     // The user's own status line keeps working: run it with the same input and show its output instead.
