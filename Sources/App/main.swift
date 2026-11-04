@@ -11,7 +11,7 @@ let claudeSettings = home.appendingPathComponent(".claude/settings.json")
 let agyHooks = home.appendingPathComponent(".gemini/config/hooks.json")
 let replayWindow: TimeInterval = 2 * 3600       // on launch, rebuild state from the last 2 hours (no celebrations)
 let codexOrphanAge: TimeInterval = 30 * 60      // on launch only: an unfinished Codex turn idle this long is stale
-let widgetSize = NSSize(width: 380, height: 184)
+let widgetSize = NSSize(width: 380, height: 186)
 
 // MARK: - Serving the web scene from the bundle (custom scheme, so fetch() and images just work)
 
@@ -102,8 +102,23 @@ final class Tail {
 let codexPayloadType = try! NSRegularExpression(pattern: #""type":"event_msg","payload":\{"type":"([a-z_]+)""#)
 let codexWanted: Set<String> = ["task_started", "task_complete", "turn_aborted", "item_completed", "exec_approval_request",
                                 "apply_patch_approval_request", "request_user_input", "stream_error", "error"]
+let isoFrac: ISO8601DateFormatter = { let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]; return f }()
+let codexCall = try! NSRegularExpression(pattern: #""type":"response_item","payload":\{"type":"(function_call|custom_tool_call|function_call_output|custom_tool_call_output)""#)
+let codexTimestamp = try! NSRegularExpression(pattern: #"^\{"timestamp":"([^"]+)""#)
+let codexCallID = try! NSRegularExpression(pattern: #""call_id":"([^"]+)""#)
+
 func slimCodexLine(_ s: String) -> String? {
     let head = String(s.prefix(400))
+    // A tool call that asks to leave the sandbox (Codex will ask you first), or any call's output.
+    if let m = codexCall.firstMatch(in: head, range: NSRange(head.startIndex..., in: head)), let r = Range(m.range(at: 1), in: head) {
+        let isOutput = head[r].hasSuffix("output")
+        guard isOutput || s.contains("require_escalated") || s.contains("with_escalated_permissions\":true"),
+              let cm = codexCallID.firstMatch(in: s, range: NSRange(s.startIndex..., in: s)),
+              let cr = Range(cm.range(at: 1), in: s) else { return nil }
+        let ts = codexTimestamp.firstMatch(in: head, range: NSRange(head.startIndex..., in: head))
+            .flatMap { Range($0.range(at: 1), in: head) }.map { String(head[$0]) } ?? ""
+        return "{\"call\":\"\(isOutput ? "output" : "escalated")\",\"call_id\":\(jsonString(String(s[cr]).prefix(80).description)),\"timestamp\":\(jsonString(ts))}"
+    }
     guard let m = codexPayloadType.firstMatch(in: head, range: NSRange(head.startIndex..., in: head)),
           let r = Range(m.range(at: 1), in: head), codexWanted.contains(String(head[r])),
           let obj = try? JSONSerialization.jsonObject(with: Data(s.utf8)) as? [String: Any],
@@ -178,6 +193,13 @@ final class Controller: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
             guard let self, self.ready else { return }
             self.web.evaluateJavaScript("JSON.stringify({at: new Date().toISOString(), companions: Companions.snapshotState()})") { out, _ in
                 if let s = out as? String { try? s.write(to: eventsDir.deletingLastPathComponent().appendingPathComponent("state.json"), atomically: true, encoding: .utf8) }
+                // Someone waiting on you: say so in the menu bar too, next to Finn's face.
+                let waiting = (out as? String).map { $0.contains("\"needsYou\":true") } ?? false
+                let title = waiting ? " Needs you" : ""
+                if self.status?.button?.title != title {
+                    self.status?.button?.title = title
+                    self.status?.button?.imagePosition = .imageLeft
+                }
             }
         }
         NotificationCenter.default.addObserver(forName: NSWindow.didChangeOcclusionStateNotification, object: panel, queue: .main) { [weak self] _ in
@@ -217,29 +239,56 @@ final class Controller: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
         updateMeters()
     }
 
-    // MARK: Token meters (the health bars along the bottom)
+    func js(_ s: String) { if ready { web.evaluateJavaScript(s, completionHandler: nil) } }
 
-    var meters: [String: Meter] = [:]
+    // MARK: Plan limits (the health bars and tombstones)
+
+    var limits: [String: [Account]] = [:]
     var metering = false
     func updateMeters() {
         guard ready, !metering else { return }
         metering = true
         let codex = codexFiles()
         DispatchQueue.global(qos: .utility).async {
-            var m: [String: Meter] = [:]
-            m["claude"] = claudeMeter()
-            m["codex"] = codexMeter(files: codex)
-            m["antigravity"] = antigravityMeter()
+            let now = Date().timeIntervalSince1970
+            let m = ["claude": claudeLimits(now: now), "antigravity": antigravityLimits(now: now),
+                     "codex": codexLimits(files: codex, now: now)]
             DispatchQueue.main.async {
                 self.metering = false
-                guard m != self.meters, let d = try? JSONEncoder().encode(m), let json = String(data: d, encoding: .utf8) else { return }
-                self.meters = m
-                self.js("Companions.setTokens(\(json))")
+                guard m != self.limits, let d = try? JSONEncoder().encode(m), let json = String(data: d, encoding: .utf8) else { return }
+                self.limits = m
+                self.js("Companions.setLimits(\(json))")
             }
         }
     }
 
-    func js(_ s: String) { if ready { web.evaluateJavaScript(s, completionHandler: nil) } }
+    // MARK: Codex approvals
+    // Codex logs a command that needs your OK (sandbox escalation) when it asks, and its output only once
+    // you've answered. One still unanswered after a few seconds (past any automatic reviewer) is waiting on you.
+
+    var escalations: [String: (session: String, at: Date, announced: Bool)] = [:]   // call id -> pending
+
+    func trackEscalations(_ items: [Item]) -> [Item] {
+        var keep: [Item] = []
+        for it in items {
+            guard it.source == "codex", it.line.hasPrefix("{\"call"),
+                  let o = try? JSONSerialization.jsonObject(with: Data(it.line.utf8)) as? [String: Any],
+                  let kind = o["call"] as? String, let id = o["call_id"] as? String else { keep.append(it); continue }
+            let at = (o["timestamp"] as? String).flatMap { isoFrac.date(from: $0) } ?? Date()
+            if kind == "escalated" { escalations[id] = (it.session ?? "", at, false) }
+            else if let e = escalations.removeValue(forKey: id), e.announced {
+                keep.append(Item(source: "codex", line: #"{"type":"event_msg","payload":{"type":"item_completed","item":{"type":"CommandExecution"}}}"#,
+                                 id: "approved:\(id)", session: e.session, replay: it.replay))
+            }
+        }
+        for (id, e) in escalations where !e.announced && Date().timeIntervalSince(e.at) > 6 {
+            escalations[id]?.announced = true
+            keep.append(Item(source: "codex", line: #"{"type":"event_msg","payload":{"type":"exec_approval_request"}}"#,
+                             id: "approval:\(id)", session: e.session, replay: false))
+        }
+        for (id, e) in escalations where Date().timeIntervalSince(e.at) > 6 * 3600 { escalations[id] = nil }   // abandoned
+        return keep
+    }
 
     // MARK: Feeding events
 
@@ -277,6 +326,7 @@ final class Controller: NSObject, NSApplicationDelegate, WKScriptMessageHandler,
             }
         }
         for it in items where it.source != "codex" { noteOwner(it) }
+        items = trackEscalations(items)
         if !items.isEmpty, let data = try? JSONEncoder().encode(items), let json = String(data: data, encoding: .utf8) {
             js("Companions.ingestBatch(\(json))")
         }

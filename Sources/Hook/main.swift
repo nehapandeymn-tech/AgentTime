@@ -4,11 +4,74 @@
 //
 //   companion-hook claude                 (Claude Code: event name arrives in the JSON as hook_event_name)
 //   companion-hook antigravity <Event>    (Antigravity: SessionStart | PreInvocation | PostToolUse | Stop)
+//   companion-hook statusline <claude|antigravity> [chained command]
+//       (status line: saves only the plan-limit numbers to ~/.agent-companions/limits/ for the health bars,
+//        then prints a short "how much is left" line, or the output of the user's own status line command)
 import Foundation
 
 let args = CommandLine.arguments
 let provider = args.count > 1 ? args[1] : ""
 let agyEvent = args.count > 2 ? args[2] : ""
+
+if provider == "statusline" { statusLine(args.count > 2 ? args[2] : "claude", chained: args.count > 3 ? args[3] : nil); exit(0) }
+
+func pct(_ f: Double) -> String { "\(Int((f * 100).rounded()))%" }
+
+/// Status line mode. Keeps nothing but bucket names, fractions left and reset times.
+func statusLine(_ tool: String, chained: String?) {
+    let input = FileHandle.standardInput.readDataToEndOfFile()
+    let obj = (try? JSONSerialization.jsonObject(with: input) as? [String: Any]) ?? [:]
+    var buckets: [[String: Any]] = []
+    var account = ""
+    let home = FileManager.default.homeDirectoryForCurrentUser.path
+    if tool == "claude" {
+        // One file per Claude config folder, so two accounts (CLAUDE_CONFIG_DIR) get two bars.
+        let dir = ProcessInfo.processInfo.environment["CLAUDE_CONFIG_DIR"].map { ($0 as NSString).expandingTildeInPath } ?? home + "/.claude"
+        account = URL(fileURLWithPath: dir).standardizedFileURL.path
+        let rl = obj["rate_limits"] as? [String: Any] ?? [:]
+        for (key, name) in [("five_hour", "5h"), ("seven_day", "week")] {
+            guard let b = rl[key] as? [String: Any], let used = (b["used_percentage"] as? NSNumber)?.doubleValue else { continue }
+            var e: [String: Any] = ["name": name, "left": max(0, min(1, 1 - used / 100))]
+            if let r = (b["resets_at"] as? NSNumber)?.doubleValue { e["resets_at"] = r }
+            buckets.append(e)
+        }
+    } else {
+        account = (obj["email"] as? String).map { String($0.prefix(120)) } ?? "default"
+        let model = ((obj["model"] as? [String: Any])?["id"] as? String ?? "").lowercased()
+        let iso = ISO8601DateFormatter()
+        for (key, v) in (obj["quota"] as? [String: Any] ?? [:]) {
+            guard let b = v as? [String: Any], let left = (b["remaining_fraction"] as? NSNumber)?.doubleValue else { continue }
+            var e: [String: Any] = ["name": String(key.prefix(40)), "left": max(0, min(1, left)),
+                                    "group": key.hasPrefix("gemini") ? "gemini" : "other"]
+            if let r = (b["reset_time"] as? String).flatMap({ iso.date(from: $0) }) { e["resets_at"] = r.timeIntervalSince1970 }
+            buckets.append(e)
+        }
+        if !buckets.isEmpty { buckets.sort { "\($0["name"]!)" < "\($1["name"]!)" } }
+        _ = model
+    }
+    if !buckets.isEmpty {
+        var rec: [String: Any] = ["provider": tool, "account": account, "buckets": buckets, "at": Date().timeIntervalSince1970]
+        if tool == "antigravity", let m = (obj["model"] as? [String: Any])?["id"] as? String {
+            rec["active_group"] = m.lowercased().contains("gemini") ? "gemini" : "other"
+        }
+        let dir = URL(fileURLWithPath: home + "/.agent-companions/limits")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let safe = account.map { $0.isLetter || $0.isNumber ? $0 : "_" }
+        if let d = try? JSONSerialization.data(withJSONObject: rec, options: [.sortedKeys]) {
+            try? d.write(to: dir.appendingPathComponent("\(tool)-\(String(safe)).json"), options: .atomic)
+        }
+    }
+    // The user's own status line keeps working: run it with the same input and show its output instead.
+    if let cmd = chained, !cmd.isEmpty {
+        let t = Process(); t.executableURL = URL(fileURLWithPath: "/bin/sh"); t.arguments = ["-c", cmd]
+        let inPipe = Pipe(); t.standardInput = inPipe
+        if (try? t.run()) != nil { inPipe.fileHandleForWriting.write(input); try? inPipe.fileHandleForWriting.close(); t.waitUntilExit() }
+        return
+    }
+    let shown = buckets.filter { ($0["group"] as? String ?? "gemini") == "gemini" || tool == "claude" }
+    let parts = shown.map { "\($0["name"]!) \(pct(($0["left"] as? Double) ?? 0)) left" }
+    print(parts.isEmpty ? "AgentTime" : "♥ " + parts.joined(separator: " · "))
+}
 
 // Antigravity hooks run synchronously and expect JSON on stdout. Reply first so nothing below can delay it.
 if provider == "antigravity" {

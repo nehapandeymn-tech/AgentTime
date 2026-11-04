@@ -4,9 +4,13 @@
   const C = window.CompanionCore;
   const P = C.PROVIDERS;
 
-  const W = 380, H = 184, GROUND = 104, BAR_Y = GROUND + 58, U = 2;   // U: one bar 'pixel' in logical px
+  const W = 380, H = 186, GROUND = 104;
+  const BAR_Y = GROUND + 6, ROW_H = 13, U = 1.5;   // health bars sit right under the characters; U = one bar 'pixel'
+  const NAME_Y = GROUND + 46;                       // room for two account rows above the names
   const HEIGHT = { finn: 58, jake: 58, bmo: 46, group: 60, 'ice-king': 66 };
-  const ATLAS_FILES = ['finn-core', 'jake-core', 'bmo-core', 'finn-context', 'jake-context', 'bmo-context', 'ice-king', 'group'];
+  const ATLAS_FILES = ['finn-core', 'jake-core', 'bmo-core', 'finn-context', 'jake-context', 'bmo-context', 'ice-king', 'group', 'death'];
+  const DEATH_STATES = new Set(['die', 'grave', 'poof']);
+  const POOF_MS = 450;
   const CONTEXT_STATES = new Set(['chill', 'thinking', 'retry', 'strained', 'encounter', 'recover']);
   const WALK_SPEED = 120;                  // logical px / s
   const ONE_SHOT_MS = { complete: 3000, recover: 3300 };
@@ -26,7 +30,7 @@
   const images = {};
   let reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let paused = false, visible = true, hover = null, rafId = 0, handleHot = false;
-  let tokens = {};                          // provider -> {used, window}: context left in its latest session
+  let limits = {};                          // provider -> [{name, known, left, limit, dead, resetsAt}] (one per account)
   let iceKing = null;                       // {target, mode:'cast'|'resolved', start}
 
   const canvas = document.getElementById('stage');
@@ -46,6 +50,7 @@
       img.onerror = () => { images[k] = null; res(); };   // a missing sheet must not look like a task error
       img.src = `sprites/${k}.png`;
     })));
+    for (const ch of ['finn', 'jake', 'bmo']) images[`${ch}-death`] = images.death;   // one sheet, three rows
   }
 
   // ------------------------------------------------------------ ingest (from the native shell)
@@ -66,6 +71,7 @@
   // ------------------------------------------------------------ choreography
 
   function seqName(p, r, c, now) {
+    if (c.poofUntil && now < c.poofUntil) return 'poof';
     if (c.moving) return c.dir > 0 ? 'walk_right' : 'walk_left';
     if (c.oneShot) return c.oneShot.kind === 'complete' ? 'complete' : 'recover';
     return r.state;      // rest | idle | practice | chill | thinking | retry | strained | encounter
@@ -77,6 +83,17 @@
       const r = store.resolve(p);
       res[p] = r;
       const c = chars[p];
+      const dead = isDead(p);
+      if (dead && !c.deadSince) { c.deadSince = now; c.oneShot = null; }
+      if (!dead && c.deadSince) { c.deadSince = 0; c.poofUntil = now + POOF_MS; }
+      if (dead) {
+        c.moving = false; c.x = WORK_X[p];                  // the tombstone stands over its own health bar
+        const name = reducedMotion ? 'grave' : 'die';         // 'die' plays once and ends on the tombstone
+        if (name !== c.seq) { c.seq = name; c.seqStart = c.deadSince; }
+        if (!c.last || !c.last.dead) announceText(`${cfg.labels[p]}: out of tokens`);
+        c.last = { ...r, dead: true };
+        continue;
+      }
       if (!c.oneShot) {
         const s = store.takeOneShot(p);
         if (s) { c.oneShot = { kind: s.kind, count: s.count, end: now + ONE_SHOT_MS[s.kind] }; if (s.kind === 'complete') store.clearBadge(p); }
@@ -107,10 +124,8 @@
     return res;
   }
 
-  function announce(p, r) {
-    if (!live) return;
-    live.textContent = `${cfg.labels[p]}: ${r.label}`;
-  }
+  function announce(p, r) { announceText(`${cfg.labels[p]}: ${r.label}`); }
+  function announceText(t) { if (live) live.textContent = t; }
 
   // ------------------------------------------------------------ drawing
 
@@ -137,7 +152,7 @@
   function drawCharacter(p, now) {
     const c = chars[p];
     const ch = cfg.characters[p];
-    const atlas = CONTEXT_STATES.has(c.seq) ? `${ch}-context` : `${ch}-core`;
+    const atlas = DEATH_STATES.has(c.seq) ? `${ch}-death` : CONTEXT_STATES.has(c.seq) ? `${ch}-context` : `${ch}-core`;
     drawSprite(atlas, c.seq, c.x, HEIGHT[ch], now - c.seqStart);
   }
 
@@ -163,6 +178,7 @@
 
   function statusLine(p, r) {
     const c = chars[p];
+    if (c.deadSince) return 'Out of tokens' + backIn(p);
     if (c.oneShot) return c.oneShot.kind === 'complete' ? (c.oneShot.count > 1 ? `Done ×${c.oneShot.count}` : 'Done') : 'Back on track';
     return r.label;
   }
@@ -179,7 +195,7 @@
     ctx.fillStyle = 'rgba(255,255,255,0.08)';
     ctx.fillRect(14 * dpr, (GROUND + 1) * dpr, (W - 28) * dpr, dpr);
 
-    const huddle = P.every(p => res[p].resting && !chars[p].moving && !chars[p].oneShot && Math.abs(chars[p].x - REST_X[p]) < 1);
+    const huddle = P.every(p => res[p].resting && !chars[p].deadSince && !chars[p].moving && !chars[p].oneShot && Math.abs(chars[p].x - REST_X[p]) < 1);
     if (huddle) {
       drawSprite('group', 'huddle', REST_X[cfg.workSlotOrder[1]], HEIGHT.group, now);   // one sprite, three friends
     } else {
@@ -193,17 +209,22 @@
     for (const p of P) {
       const r = res[p];
       const x = COL_X[p];
-      const dot = r.unavailable ? STATE_COLOR.unavailable : STATE_COLOR[chars[p].oneShot ? 'chill' : r.state] || STATE_COLOR.idle;
-      text(cfg.labels[p], x + 4, GROUND + 22, { weight: 700, size: 11.5, max: 110 });
+      const dead = !!chars[p].deadSince;
+      const dot = dead ? STATE_COLOR.unavailable : r.unavailable ? STATE_COLOR.unavailable : STATE_COLOR[chars[p].oneShot ? 'chill' : r.state] || STATE_COLOR.idle;
+      text(cfg.labels[p], x + 4, NAME_Y, { weight: 700, size: 11.5, max: 110 });
       const nameW = ctx.measureText(cfg.labels[p]).width / dpr;
       ctx.fillStyle = dot;
-      ctx.beginPath(); ctx.arc((x + 4 - nameW / 2 - 7) * dpr, (GROUND + 18) * dpr, 3 * dpr, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc((x + 4 - nameW / 2 - 7) * dpr, (NAME_Y - 4) * dpr, 3 * dpr, 0, Math.PI * 2); ctx.fill();
       const badge = r.badge ? `  ✓${r.badge}` : '';
-      text(statusLine(p, r) + badge, x, GROUND + 37, { size: 10.5, max: 120, color: huddle ? 'rgba(255,255,255,0.6)' : dot });
-      if (r.summary) text(r.summary, x, GROUND + 50, { size: 9.5, max: 120, color: 'rgba(255,255,255,0.55)' });
+      const asking = r.rank === C.RANK.needsUser && !dead;
+      const flash = asking && !reducedMotion && !paused && Math.floor(now / 500) % 2 === 1;
+      text(statusLine(p, r) + badge, x, NAME_Y + 15, { size: 10.5, weight: asking ? 700 : 500, max: 120,
+        color: dead ? 'rgba(255,255,255,0.55)' : asking ? (flash ? '#ffffff' : '#ffcc33') : huddle ? 'rgba(255,255,255,0.6)' : dot });
+      if (asking) drawAsk(p, now);
+      if (r.summary && !dead) text(r.summary, x, NAME_Y + 28, { size: 9.5, max: 120, color: 'rgba(255,255,255,0.55)' });
     }
 
-    for (const p of P) drawTokenBar(p, COL_X[p], now);
+    for (const p of P) drawHealth(p, now);
 
     // Grab handle: the only part of the widget that takes the mouse (drag it, right-click it).
     roundRect((W / 2 - 22) * dpr, 7 * dpr, 44 * dpr, 5 * dpr, 2.5 * dpr);
@@ -213,66 +234,81 @@
   }
 
 
-  // ------------------------------------------------------------ token health bars (pixel style)
+  // ------------------------------------------------------------ health bars and tombstones
 
-  // 3×5 pixel font for the bar labels: digits plus k, M and a dash.
+  // An agent is out only when every account we know about is out. Accounts with no numbers yet don't count.
+  function isDead(p) {
+    const known = (limits[p] || []).filter(a => a.known);
+    return known.length > 0 && known.every(a => a.dead);
+  }
+  function backIn(p) {
+    const times = (limits[p] || []).filter(a => a.dead && a.resetsAt).map(a => a.resetsAt);
+    if (!times.length) return '';
+    const mins = Math.max(1, Math.round((Math.min(...times) * 1000 - Date.now()) / 60000));
+    return mins >= 60 * 24 ? ` · back in ${Math.round(mins / 1440)}d` : mins >= 60 ? ` · back in ${Math.floor(mins / 60)}h ${mins % 60}m` : ` · back in ${mins}m`;
+  }
+
+  // 3×5 pixel font for the bars: digits, capitals, % and a dash.
   const GLYPH = {
     '0': '111101101101111', '1': '010110010010111', '2': '111001111100111', '3': '111001111001111',
     '4': '101101111001001', '5': '111100111001111', '6': '111100111101111', '7': '111001001010010',
-    '8': '111101111101111', '9': '111101111001111', 'k': '100101110101101', 'M': '101111111101101',
-    '.': '000000000000010', '-': '000000111000000',
+    '8': '111101111101111', '9': '111101111001111', '%': '101001010100101', '-': '000000111000000',
+    'A': '010101111101101', 'B': '110101110101110', 'C': '011100100100011', 'D': '110101101101110',
+    'E': '111100110100111', 'F': '111100110100100', 'G': '011100101101011', 'H': '101101111101101',
+    'I': '111010010010111', 'J': '001001001101010', 'K': '101101110101101', 'L': '100100100100111',
+    'M': '101111111101101', 'N': '110101101101101', 'O': '010101101101010', 'P': '110101110100100',
+    'Q': '010101101110011', 'R': '110101110101101', 'S': '011100010001110', 'T': '111010010010010',
+    'U': '101101101101111', 'V': '101101101101010', 'W': '101101111111101', 'X': '101101010101101',
+    'Y': '101101010010010', 'Z': '111001010100111', '.': '000000000000010',
   };
 
   // Bar graphics are drawn on a coarse grid (U logical px per pixel) so they match the sprites' chunky pixels.
   let gx = 0, gy = 0;
   function px(x, y, w, h, color) { ctx.fillStyle = color; ctx.fillRect((gx + x * U) * dpr, (gy + y * U) * dpr, w * U * dpr, h * U * dpr); }
-
-  function pixelText(str, x, y, color) {          // left-aligned at x; returns width in px
+  function pixelText(str, x, y, color) {
     let cx = x;
-    for (const ch of str) {
+    for (const ch of str.toUpperCase()) {
       const g = GLYPH[ch];
       if (g) for (let i = 0; i < 15; i++) if (g[i] === '1') px(cx + (i % 3), y + Math.floor(i / 3), 1, 1, color);
       cx += 4;
     }
-    return cx - x - 1;
   }
+  const textW = str => str.length * 4 - 1;
 
-  function shortCount(n) {
-    if (n >= 999500) return (n / 1e6).toFixed(n >= 9.95e6 ? 0 : 1).replace(/\.0$/, '') + 'M';
-    if (n >= 1000) return Math.round(n / 1000) + 'k';
-    return String(Math.max(0, Math.round(n)));
-  }
-
-  const SEGMENTS = 8, SEG_W = 3;
+  const SEGMENTS = 8, SEG_W = 3, BH = 7;
   function barColors(frac) {
     if (frac > 0.5) return ['#4cd964', '#a6f5b0'];
     if (frac > 0.2) return ['#ffcc33', '#ffe9a0'];
     return ['#ff4d4d', '#ffb0a8'];
   }
 
-  function drawTokenBar(p, x, now) {
-    const m = tokens[p];
-    const has = !!(m && m.window > 0);
-    const left = has ? Math.max(0, m.window - m.used) : 0;
-    const frac = has ? left / m.window : 0;
+  function drawHealth(p, now) {
+    let accts = limits[p] || [];
+    if (!accts.length) accts = [{ name: '', known: false }];
+    const named = accts.length > 1;
+    const nameW = named ? Math.max(...accts.map(a => textW((a.name || '?').slice(0, 8)))) + 3 : 0;
+    accts.forEach((a, row) => drawBar(a, COL_X[p], BAR_Y + row * ROW_H, named ? (a.name || '?').slice(0, 8) : '', nameW, now));
+  }
+
+  function drawBar(a, x, y, name, nameW, now) {
+    const has = !!a.known;
+    const frac = has ? Math.max(0, Math.min(1, a.left)) : 0;
     const [fill, shine] = barColors(frac);
-    const BH = 7;                                   // bar height: 1-pixel frame around 5 rows
     const barW = SEGMENTS * SEG_W + 3;              // frame, 1 gap, segments (2 wide + 1 gap), frame
-    const label = has ? shortCount(left) : '-';
-    const total = barW + 2 + (label.length * 4 - 1);
-    gx = Math.round(x - total * U / 2); gy = BAR_Y;
+    const label = !has ? '-' : `${Math.round(frac * 100)}%`;
+    const total = nameW + barW + 2 + textW('100%');
+    gx = Math.round(x - total * U / 2); gy = y;
     let cx = 0;
+    if (name) pixelText(name, nameW - 3 - textW(name), 1, has ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.35)');
+    cx += nameW;
 
-    // Nearly out of room: the lit segments blink.
-    const blinkOff = has && frac <= 0.1 && !reducedMotion && !paused && Math.floor(now / 400) % 2 === 1;
-
-
-    // Frame, then segments: lit ones get a highlight row and a shadow row, unlit ones stay dark.
+    // Nearly out: the lit segments blink. Out: an empty bar.
+    const blinkOff = has && frac <= 0.1 && frac > 0 && !reducedMotion && !paused && Math.floor(now / 400) % 2 === 1;
     const edge = 'rgba(255,255,255,0.4)';
     px(cx, 0, barW, BH, '#0b0d14');
     px(cx + 1, 0, barW - 2, 1, edge); px(cx + 1, BH - 1, barW - 2, 1, edge);
     px(cx, 1, 1, BH - 2, edge); px(cx + barW - 1, 1, 1, BH - 2, edge);
-    const lit = has && left > 0 && !blinkOff ? Math.max(1, Math.ceil(frac * SEGMENTS)) : 0;
+    const lit = has && frac > 0 && !blinkOff ? Math.max(1, Math.ceil(frac * SEGMENTS)) : 0;
     for (let i = 0; i < SEGMENTS; i++) {
       const sx = cx + 2 + i * SEG_W;
       if (i < lit) {
@@ -283,6 +319,19 @@
     }
     cx += barW + 2;
     pixelText(label, cx, 1, has ? fill : 'rgba(255,255,255,0.35)');
+  }
+
+  // Waiting on you: a bouncing pixel "!" bubble over the character's head.
+  function drawAsk(p, now) {
+    const c = chars[p];
+    const ch = cfg.characters[p];
+    const bob = reducedMotion || paused ? 0 : Math.round(Math.abs(Math.sin(now / 220)) * 4);
+    const Z = 2;                                       // bubble pixels are 2 bar pixels
+    gx = Math.round(c.x + 6); gy = Math.round(GROUND - HEIGHT[ch] - 26 - bob);
+    const B = ['01111110', '11111111', '11111111', '11111111', '11111111', '11111111', '01111110', '00111000', '00110000', '00100000'];
+    B.forEach((row, y) => { for (let x = 0; x < 8; x++) if (row[x] === '1') px(x * Z, y * Z, Z, Z, '#ffcc33'); });
+    px(0, 2 * Z, Z / 2, 3 * Z, '#ffe9a0');           // a little shine on the left edge
+    px(3.5 * Z, 1 * Z, Z, 3 * Z, '#1b1f2b'); px(3.5 * Z, 5 * Z, Z, Z, '#1b1f2b');
   }
 
 
@@ -316,8 +365,8 @@
     setEncounters: v => { cfg.encounters = v; wake(); },
     hover: (x, y) => { hover = x == null ? null : { x, y }; wake(); },
     setHandle: on => { handleHot = on; wake(); },
-    setTokens: t => { tokens = t || {}; wake(); },
-    snapshotState: () => P.map(p => { const r = store.resolve(p); return { provider: p, state: r.state, label: r.label, x: chars[p].x, seq: chars[p].seq, tokens: tokens[p] || null }; }),
+    setLimits: l => { limits = l || {}; wake(); },
+    snapshotState: () => P.map(p => { const r = store.resolve(p); return { provider: p, state: r.state, label: r.label, x: chars[p].x, seq: chars[p].seq, needsYou: r.rank === C.RANK.needsUser, dead: !!chars[p].deadSince, limits: limits[p] || [] }; }),
     _store: store,
   };
 

@@ -18,19 +18,22 @@ The design follows `handoff/START-HERE-CLAUDE.txt`. The art in `web/sprites/` is
 - Right-click it, or use the menu-bar icon, for: Hide/Show, Pause Animations, Ice King on Tough Tasks, Clear Failure Labels, Move to Bottom-Right Corner, Quit.
 - `~/.agent-companions/state.json` holds what each companion shows right now (updated every 2 s).
 
-## Health bars (tokens left)
+## Health bars, tombstones and approvals
 
-Each column ends with a pixel health bar: the context window left in that agent's most recent session (last 24 h), refreshed every 4 s by `Sources/App/Tokens.swift`. Only numbers are read; nothing else from these files is kept.
+Right under each character: one pixel bar per account, showing how much of its **plan usage limit** is left (the tighter of the 5-hour and weekly limits). `Sources/App/Limits.swift` refreshes them every 4 s. Only numbers are read.
 
-| Agent | Where the numbers come from | Window size |
-|---|---|---|
-| Claude Code | Newest transcript in `~/.claude/projects/*/*.jsonl`: the last main-thread assistant message's `usage` (input + cache read + cache write + output) | Not logged: 200k, or 1M once the session has gone past 200k |
-| Codex | Newest session log: the last `token_count` event's `last_token_usage.total_tokens` | `model_context_window` from the same event |
-| Antigravity | Newest `~/.gemini/antigravity-cli/conversations/*.db` (opened read-only): the latest `gen_metadata` row, protobuf fields 1›9›10›1 (prompt tokens) and 1›9›10›4 (window) | From the same record |
+| Agent | Where the numbers come from |
+|---|---|
+| Claude Code | Its status line runs `companion-hook statusline claude`, which saves `rate_limits.five_hour` / `seven_day` (`used_percentage`, `resets_at`) to `~/.agent-companions/limits/claude-<config dir>.json`. One file per config folder, so `~/.claude` and every `CLAUDE_CONFIG_DIR` an alias in `~/.zshrc` uses become separate accounts, named after the alias (`lesgo`, `personal`). |
+| Antigravity | Its status line (`~/.gemini/antigravity-cli/settings.json`) runs `companion-hook statusline antigravity`, which saves `quota` (`gemini-5h`, `gemini-weekly`, `3p-5h`, `3p-weekly`: `remaining_fraction`, `reset_time`). The bar shows the group of the model in use; Jake is only out when both groups are. |
+| Codex | The newest `rate_limits` in its session logs (`primary` / `secondary`: `used_percent`, `window_minutes`, `resets_at`, plus `rate_limit_reached_type`). |
 
-Colours: green above 50% left, yellow above 20%, red below; the bar blinks at 10% or less. Antigravity's format is undocumented, so if it changes, Jake's bar shows empty with a dash instead of a wrong number.
+- A limit whose reset time has passed counts as full again, so a tombstone lifts on time even if the agent hasn't run since.
+- **Tombstone:** an agent is out when every account with numbers is at 0%. Its character plays the "out of tokens" sequence (`web/sprites/death.png`, cut from `Resources/death-sheet.png` with `swift Tools/cutdeath.swift`) and a tombstone stays over its bar with "Out of tokens · back in …". An account with no numbers yet (never used) shows a dash and doesn't count either way.
+- **Status lines:** `connect.sh` keeps an existing status line working: the hook saves the numbers, then runs your old command and shows its output. `disconnect.sh` puts it back.
+- **Codex approvals:** Codex logs a tool call that asks to leave the sandbox (`require_escalated`) when it asks you, and the call's output only once you've answered. A call still unanswered after 6 s (past Codex's automatic reviewer) shows "Needs approval": a bouncing **!** over BMO, a flashing label, and "Needs you" in the menu bar. When the output arrives, BMO goes back to work.
 
-To preview the bars: add `Companions.setTokens({claude:{used:79000,window:200000}})` to the `--js` snapshot script.
+To preview: add `Companions.setLimits({codex:[{name:'',known:true,left:0,dead:true}]})` to the `--js` snapshot script.
 
 ## Build
 
@@ -58,13 +61,14 @@ Codex session logs (read-only) ───────┘                         
 - `scripts/connect.sh` / `scripts/disconnect.sh`: add or remove the hooks, keeping all other settings.
 - `Sources/Hook/main.swift`: `companion-hook`. It stores only an allow-list (event name, session id, tool name, failure flag, process id). It never stores prompts, file contents or commands, never blocks, and always answers Antigravity with valid JSON (about 20 ms).
 - `Sources/App/main.swift`: the floating panel, log tailing, process checks and menu. Codex lines are cut down to event types before they reach the web view.
-- `Sources/App/Tokens.swift`: the read-only token meters behind the health bars.
+- `Sources/App/Limits.swift`: plan limits per account (health bars, tombstones).
+- `scripts/accounts.py`: finds your Claude accounts (config folders used by shell aliases) for `connect.sh`.
 - `web/core.js`: all task logic, with no DOM. It covers dedup by event id, revision ordering, stable terminal states, retry streaks per attempt, one-shot completions (never replayed after a relaunch), and completion badges when another task needs help.
 - `tests/core.test.js`: 25 tests covering the brief's acceptance scenarios and all three adapters.
 
 ## Known limits
 
-- **Approvals:** Antigravity has no approval or notification hook, so Jake can't show "Needs approval". The Codex logs on this Mac contain no approval events either; BMO shows them only if Codex writes them.
+- **Approvals:** Antigravity has no approval or notification hook, so Jake can't show "Needs approval". Codex approvals are inferred from sandbox-escalation calls that haven't been answered after 6 s; other kinds of Codex approval (like file edits outside the project) aren't detected.
 - **Counted failures:** Claude and Antigravity report failed tool calls (for example a `grep` with no match). Each one counts as a failed attempt; one success resets the streak.
 - **Turns that end without a stop:** these close when that session's own process exits (recorded per session by the hook). For Codex, an unfinished turn idle for 30+ minutes is closed only at launch.
 - **Ice King:** none of the three tools reports "difficulty", so the Ice King appears only when something marks a task as an encounter (and the menu option is on).

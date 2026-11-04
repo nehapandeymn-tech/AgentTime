@@ -32,15 +32,19 @@ When nobody has anything to do, all three curl up together for a nap. As soon as
 
 Every buddy also has a little label underneath saying exactly what's going on, so the cute part never hides the real status.
 
-## Health bars
+## Health bars and tombstones 🪦
 
-Under each buddy there's a little pixel health bar showing how many tokens are left in that agent's current conversation (its context window). It drains as the chat gets longer:
+Right under each buddy is a little pixel health bar showing how much of that agent's **usage limit** is left. It counts down as you use it, and only fills back up when the limit resets. The bar always shows the tighter of the 5-hour and weekly limits, as a percentage, because that's how Claude, Codex and Antigravity themselves report it.
 
-- 🟩 **Green:** plenty of room.
-- 🟨 **Yellow:** under half left.
-- 🟥 **Red:** under a fifth left. When it's almost empty, the bar blinks, which is a good moment to wrap up or start a fresh chat.
+- 🟩 **Green:** plenty left. 🟨 **Yellow:** under half. 🟥 **Red:** under a fifth. Nearly empty, it blinks.
+- **Two accounts?** If you use two Claude accounts (for example a second one through a `CLAUDE_CONFIG_DIR` alias), Finn gets one bar per account, labelled with the alias name.
+- **Out of tokens:** when every account an agent has is used up, its buddy gets tired, collapses, goes *poof*… and a tombstone appears in its place, with a label saying when the limit comes back. As long as one account still has some left, the buddy stays alive. When the limit resets, they pop right back.
 
-The number next to the bar is the tokens left, like `104k`. An empty bar and a dash mean that agent hasn't been used in the last day.
+![Finn alive on his second account, BMO's tombstone after Codex ran out](docs/5-out-of-tokens.png)
+
+## "Needs you!"
+
+When Codex (or Claude) is stuck waiting for you to approve something, the buddy gets a bouncing **!** bubble, the label flashes *Needs approval*, and the menu bar says **Needs you** next to Finn's face, so a command never sits waiting for you unnoticed.
 
 ## Install it with a prompt
 
@@ -52,8 +56,9 @@ Install AgentTime (https://github.com/nehapandeymn-tech/AgentTime) on this Mac:
 1. Clone it to ~/AgentTime. It needs the Xcode Command Line Tools; if swiftc is
    missing, tell me to run xcode-select --install and stop.
 2. In ~/AgentTime run ./build.sh --install (builds, tests, copies to /Applications).
-3. Run ./scripts/connect.sh (hooks up Claude Code and Antigravity if I have them;
-   Codex needs nothing). It keeps my existing settings and backs them up first.
+3. Run ./scripts/connect.sh (hooks up Claude Code, every Claude account I use through
+   a CLAUDE_CONFIG_DIR alias, and Antigravity; Codex needs nothing). It adds hooks and
+   a status line, keeps my existing settings (and status line) and backs them up first.
 4. Run: open /Applications/AgentTime.app
 5. Tell me Finn (Claude), Jake (Antigravity) and BMO (Codex) now live in the
    bottom-right corner: drag them anywhere, right-click for options.
@@ -72,7 +77,7 @@ open /Applications/AgentTime.app
 - **It never gets in your way:** when your mouse goes over the widget, it fades almost invisible and clicks go straight through to whatever is behind it.
 - **Move it:** grab the little bar along the top and drag it anywhere.
 - **Options:** right-click the top bar (or use the menu-bar icon) to pause the animations, hide it, or turn on the optional **Ice King** cameo for really tough tasks.
-- **Private by design:** it only notices *that* something happened, like "a task started" or "a step failed", plus the token counts for the health bars. It never stores or shows your prompts, your code or your conversations.
+- **Private by design:** it only notices *that* something happened, like "a task started" or "a step failed", plus how much of your usage limit is left (from each agent's status line or logs). It never stores or shows your prompts, your code or your conversations.
 
 ## Saying goodbye
 
