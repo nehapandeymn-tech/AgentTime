@@ -23,11 +23,17 @@ func statusLine(_ tool: String, chained: String?) {
     let obj = (try? JSONSerialization.jsonObject(with: input) as? [String: Any]) ?? [:]
     var buckets: [[String: Any]] = []
     var account = ""
+    var login = ""
     let home = FileManager.default.homeDirectoryForCurrentUser.path
     if tool == "claude" {
         // One file per Claude config folder, so two accounts (CLAUDE_CONFIG_DIR) get two bars.
         let dir = ProcessInfo.processInfo.environment["CLAUDE_CONFIG_DIR"].map { ($0 as NSString).expandingTildeInPath } ?? home + "/.claude"
         account = URL(fileURLWithPath: dir).standardizedFileURL.path
+        // Which login this folder holds right now, so a /login switch never mixes two accounts' numbers.
+        let cfg = ProcessInfo.processInfo.environment["CLAUDE_CONFIG_DIR"] == nil ? home + "/.claude.json" : dir + "/.claude.json"
+        if let d = FileManager.default.contents(atPath: cfg),
+           let o = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
+           let a = o["oauthAccount"] as? [String: Any], let e = a["emailAddress"] as? String { login = e }
         let rl = obj["rate_limits"] as? [String: Any] ?? [:]
         for (key, name) in [("five_hour", "5h"), ("seven_day", "week")] {
             guard let b = rl[key] as? [String: Any], let used = (b["used_percentage"] as? NSNumber)?.doubleValue else { continue }
@@ -51,6 +57,7 @@ func statusLine(_ tool: String, chained: String?) {
     }
     if !buckets.isEmpty {
         var rec: [String: Any] = ["provider": tool, "account": account, "buckets": buckets, "at": Date().timeIntervalSince1970]
+        if !login.isEmpty { rec["login"] = login }
         if tool == "antigravity", let m = (obj["model"] as? [String: Any])?["id"] as? String {
             rec["active_group"] = m.lowercased().contains("gemini") ? "gemini" : "other"
         }
@@ -62,7 +69,8 @@ func statusLine(_ tool: String, chained: String?) {
         // idle window can report an older, higher figure. Within one limit window usage only goes up:
         // keep the lowest "left" seen for the same bucket and reset time.
         if let old = (try? Data(contentsOf: file)).flatMap({ try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }),
-           let oldBuckets = old["buckets"] as? [[String: Any]] {
+           let oldBuckets = old["buckets"] as? [[String: Any]],
+           (old["login"] as? String ?? "") == login {
             rec["buckets"] = buckets.map { b -> [String: Any] in
                 var b = b
                 guard let prev = oldBuckets.first(where: { $0["name"] as? String == b["name"] as? String }),

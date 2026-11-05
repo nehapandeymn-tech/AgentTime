@@ -84,8 +84,20 @@ func claudeAccounts() -> [(dir: String, name: String)] {
         .map { ($0.0, $0.1 ?? (URL(fileURLWithPath: $0.0).lastPathComponent.trimmingCharacters(in: CharacterSet(charactersIn: ".")))) }
 }
 
+/// The Claude login a config folder holds (its .claude.json; the default folder keeps it at ~/.claude.json).
+/// A folder nobody ever signed in to has none and gets no bar.
+func claudeLogin(_ dir: String) -> String? {
+    let defaultDir = home.appendingPathComponent(".claude").path
+    let files = dir == defaultDir ? [home.appendingPathComponent(".claude.json"), URL(fileURLWithPath: dir + "/.claude.json")]
+                                  : [URL(fileURLWithPath: dir + "/.claude.json")]
+    for f in files {
+        if let a = readJSON(f)?["oauthAccount"] as? [String: Any], let e = a["emailAddress"] as? String, !e.isEmpty { return e }
+    }
+    return nil
+}
+
 func claudeLimits(now: Double) -> [Account] {
-    claudeAccounts().map { acct in
+    claudeAccounts().filter { claudeLogin($0.dir) != nil }.map { acct in
         let file = limitsDir.appendingPathComponent("claude-\(safeName(acct.dir)).json")
         guard let rec = readJSON(file) else { return Account(name: acct.name, known: false) }
         let s = summarize(buckets(rec), now: now)
